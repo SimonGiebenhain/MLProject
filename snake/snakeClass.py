@@ -169,7 +169,7 @@ def initialize_game(player, game, food, agent):
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food, agent)
     state_init2 = agent.get_state(game, player, food)
-    reward1 = agent.set_reward(game, player, game.crash, game.crash_reason)
+    reward1 = agent.set_reward(game, player, game.crash, game.crash_reason, action)
     agent.remember(state_init1, action, reward1, state_init2, game.crash)
     agent.replay_new(agent.memory)
 
@@ -230,7 +230,7 @@ def run():
             state_new = agent.get_state(game, player1, food1)
             
             #set treward for the new state
-            reward = agent.set_reward(game, player1, game.crash, game.crash_reason)
+            reward = agent.set_reward(game, player1, game.crash, game.crash_reason, final_move)
             
             #train short memory base on the new action and state
             agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)
@@ -242,7 +242,7 @@ def run():
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
-        print(agent.epsilon)
+        #print(agent.epsilon)
         agent.replay_new(agent.memory)
         counter_games += 1
         print('Game', counter_games, '      Score:', game.score)

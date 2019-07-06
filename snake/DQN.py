@@ -233,28 +233,28 @@ class DQNAgent(object):
         y = player.y
         body = player.position
         if player.x_change == 20:
-            if ((y + 20 in body) or (y + 20 >= game.game_height)) and \
-                    ((y - 20 in body) or (y - 20 <= 0)) and \
+            if (([x, y + 20] in body) or (y + 20 >= game.game_height)) and \
+                    (([x, y - 20] in body) or (y - 20 <= 0)) and \
                     (([pos[0] for pos in body[:-2] if pos[1] == y and pos[0] > x]) or (
                             (x + 20) >= game.game_width - 20)):
                 self.reward -= 20
                 print('punished sackgasse')
         elif player.x_change == -20:
-            if ((y + 20 in body) or (y + 20 >= game.game_height)) and \
-                    ((y - 20 in body) or (y - 20 <= 0)) and \
+            if (([x, y + 20] in body) or (y + 20 >= game.game_height)) and \
+                    (([x, y - 20] in body) or (y - 20 <= 0)) and \
                     (([pos[0] for pos in body[:-2] if pos[1] == y and pos[0] < x]) or ((x - 20) <= 0)):
                 self.reward -= 20
                 print('punished sackgasse')
         elif player.y_change == 20:
-            if ((x + 20 in body) or (x + 20 >= game.game_width)) and \
-                    ((x - 20 in body) or (x - 20 <= 0)) and \
+            if (([x + 20, y] in body) or (x + 20 >= game.game_width)) and \
+                    (([x - 20, y] in body) or (x - 20 <= 0)) and \
                     (([pos[1] for pos in body[:-2] if pos[0] == x and pos[1] > y]) or (
                             (y + 20) >= game.game_height - 20)):
                 self.reward -= 20
                 print('punished sackgasse')
         elif player.y_change == -20:
-            if ((x + 20 in body) or (x + 20 >= game.game_width)) and \
-                    ((x - 20 in body) or (x - 20 <= 0)) and \
+            if (([x + 20, y] in body) or (x + 20 >= game.game_width)) and \
+                    (([x - 20, y] in body) or (x - 20 <= 0)) and \
                     (([pos[1] for pos in body[:-2] if pos[0] == x and pos[1] < y]) or ((y - 20) <= 0)):
                 self.reward -= 20
                 print('punished sackgasse')
@@ -266,89 +266,89 @@ class DQNAgent(object):
                 return True
 
 
-        if turn == 'right':
+        if turn == 'left':
             if direction == 'upwards':
                 if length > game.game_height/20 - 2:
                     return False
-                if num_turns < 5 and [x+20, y] in body:
-                    return self.trace_edge(game, x+20, y, body, start_x, start_y, 'right', 'rightwards', num_turns+1, 1)
+                if num_turns < 5 and ( [x+20, y] in body or y <= 0 ):
+                    return self.trace_edge(game, x+20, y, body, start_x, start_y, 'left', 'rightwards', num_turns+1, 1)
                 elif [x, y-20] in body or x <= 0:
-                    return self.trace_edge(game, x, y-20, body, start_x, start_y, 'right', 'upwards', num_turns, length + 1)
+                    return self.trace_edge(game, x, y-20, body, start_x, start_y, 'left', 'upwards', num_turns, length + 1)
                 else:
                     return False
             elif direction == 'rightwards':
                 if length > game.game_width/20 - 2:
                     return False
-                if num_turns < 5 and [x, y+20] in body:
-                    return self.trace_edge(game, x, y+20, body, start_x, start_y,  'right', 'downwards', num_turns+1, 1)
+                if num_turns < 5 and ( [x, y+20] in body or x >= game.game_width ):
+                    return self.trace_edge(game, x, y+20, body, start_x, start_y,  'left', 'downwards', num_turns+1, 1)
                 elif [x+20, y] in body or y <= 0:
-                    return self.trace_edge(game, x+20, y, body, start_x, start_y, 'right', 'rightwards', num_turns, length + 1)
+                    return self.trace_edge(game, x+20, y, body, start_x, start_y, 'left', 'rightwards', num_turns, length + 1)
                 else:
                     return False
             elif direction == 'downwards':
                 if length > game.game_height/20 - 2:
                     return False
-                if num_turns < 5 and [x-20, y] in body:
-                    return self.trace_edge(game, x-20, y, body, start_x, start_y, 'right', 'leftwards', num_turns+1, 1)
-                elif [x, y-20] in body or x >= game.game_width:
-                    return self.trace_edge(game, x, y-20, body, start_x, start_y, 'right', 'downwards', num_turns, length + 1)
+                if num_turns < 5 and ( [x-20, y] in body or y >= game.game_height ):
+                    return self.trace_edge(game, x-20, y, body, start_x, start_y, 'left', 'leftwards', num_turns+1, 1)
+                elif [x, y+20] in body or x >= game.game_width:
+                    return self.trace_edge(game, x, y+20, body, start_x, start_y, 'left', 'downwards', num_turns, length + 1)
                 else:
                     return False
             else: # direction == 'leftwards'
                 if length > game.game_width/20 - 2:
                     return False
-                if num_turns < 5 and [x, y-20] in body:
-                    return self.trace_edge(game, x, y-20, body, start_x, start_y, 'right', 'upwards', num_turns+1, 1)
+                if num_turns < 5 and ( [x, y-20] in body or x <= 0 ):
+                    return self.trace_edge(game, x, y-20, body, start_x, start_y, 'left', 'upwards', num_turns+1, 1)
                 elif [x-20, y] in body or y >= game.game_height:
-                    return self.trace_edge(game, x-20, y, body, start_x, start_y, 'right', 'leftwards', num_turns, length + 1)
+                    return self.trace_edge(game, x-20, y, body, start_x, start_y, 'left', 'leftwards', num_turns, length + 1)
                 else:
                     return False
-        else: # left turn
+        else: # right turn
             if direction == 'upwards':
                 if length > game.game_height / 20 - 2:
                     return False
-                if num_turns < 5 and [x - 20, y] in body:
-                    return self.trace_edge(game, x - 20, y, body, start_x, start_y, 'left', 'leftwards', num_turns + 1, 1)
+                if num_turns < 5 and ( [x - 20, y] in body or y <= 0 ):
+                    return self.trace_edge(game, x - 20, y, body, start_x, start_y, 'right', 'leftwards', num_turns + 1, 1)
                 elif [x, y - 20] in body or x >= game.game_width:
-                    return self.trace_edge(game, x, y - 20, body, start_x, start_y, 'left', 'upwards', num_turns, length + 1)
+                    return self.trace_edge(game, x, y - 20, body, start_x, start_y, 'right', 'upwards', num_turns, length + 1)
                 else:
                     return False
             elif direction == 'rightwards':
                 if length > game.game_width / 20 - 2:
                     return False
-                if num_turns < 5 and [x, y - 20] in body:
-                    return self.trace_edge(game, x, y - 20, body, start_x, start_y, 'left', 'upwards', num_turns + 1, 1)
+                if num_turns < 5 and ( [x, y - 20] in body or x >= game.game_width ):
+                    return self.trace_edge(game, x, y - 20, body, start_x, start_y, 'right', 'upwards', num_turns + 1, 1)
                 elif [x + 20, y] in body or y >= game.game_height:
-                    return self.trace_edge(game, x + 20, y, body, start_x, start_y, 'left', 'rightwards', num_turns, length + 1)
+                    return self.trace_edge(game, x + 20, y, body, start_x, start_y, 'right', 'rightwards', num_turns, length + 1)
                 else:
                     return False
             elif direction == 'downwards':
                 if length > game.game_height / 20 - 2:
                     return False
-                if num_turns < 5 and [x + 20, y] in body:
-                    return self.trace_edge(game, x + 20, y, body, start_x, start_y, 'left', 'rightwards', num_turns + 1, 1)
-                elif [x, y - 20] in body or x <= 0:
-                    return self.trace_edge(game, x, y - 20, body, start_x, start_y, 'left', 'downwards', num_turns, length + 1)
+                if num_turns < 5 and ( [x + 20, y] in body or y >= game.game_width ):
+                    return self.trace_edge(game, x + 20, y, body, start_x, start_y, 'right', 'rightwards', num_turns + 1, 1)
+                elif [x, y + 20] in body or x <= 0:
+                    return self.trace_edge(game, x, y + 20, body, start_x, start_y, 'right', 'downwards', num_turns, length + 1)
                 else:
                     return False
             else:  # direction == 'leftwards'
                 if length > game.game_width / 20 - 2:
                     return False
-                if num_turns < 5 and [x, y + 20] in body:
-                    return self.trace_edge(game, x, y + 20, body, start_x, start_y, 'left', 'downwards', num_turns + 1, 1)
+                if num_turns < 5 and ( [x, y + 20] in body or x <= 0 ):
+                    return self.trace_edge(game, x, y + 20, body, start_x, start_y, 'right', 'downwards', num_turns + 1, 1)
                 elif [x - 20, y] in body or y <= 0:
-                    return self.trace_edge(game, x - 20, y, body, start_x, start_y, 'left', 'leftwards', num_turns, length + 1)
+                    return self.trace_edge(game, x - 20, y, body, start_x, start_y, 'right', 'leftwards', num_turns, length + 1)
                 else:
                     return False
 
 
-    def punish_loop(self, game, player):
+    def punish_loop(self, game, player, curr_move):
         x = player.x
         y = player.y
-        body = player.position
+        body = player.position[:-2]
 
         punish_value = 40
-        if np.array_equal(self.last_move, [0, 1, 0]): # right turn
+        if np.array_equal(curr_move, [0, 1, 0]): # right turn
             #TODO is player.x_change und pos schon die nach der entscheidung?
             if player.y_change == -20:
                 if ([x - 20, y] in body) or (x - 20 <= 0):
@@ -383,7 +383,7 @@ class DQNAgent(object):
                         print('punished loop')
             elif player.x_change == -20:
                 if ([x, y - 20] in body) or (y - 20 <= 0):
-                    if self.trace_edge(game, x + 20, y, body, x, y + 20, 'left', 'downwards', 1, 1):
+                    if self.trace_edge(game, x + 20, y, body, x, y - 20, 'left', 'downwards', 1, 1):
                         self.reward -= punish_value
                         print('punished loop')
             else:  # elif player.x_change == 20:
@@ -393,7 +393,7 @@ class DQNAgent(object):
                         print('punished loop')
 
 
-    def set_reward(self, game, player, crash, crash_reason):
+    def set_reward(self, game, player, crash, crash_reason, curr_move):
         #TODO:
         #       - sind viele kurven wirklich schlecht? immerhin kann es eine kompakte schlange geben
         #       - check for closed loops in reward and give -100 or smth.
@@ -413,19 +413,19 @@ class DQNAgent(object):
         if player.food > 10:
             if self.move_count >= 3 and self.did_turn:
                 self.reward -= self.move_count/5
-                print('move count: ', self.move_count)
+                #print('move count: ', self.move_count)
         # go towards food, else get reckt
         if player.food_distance < player.food_distance_old:
-            self.reward += 0.1
+            self.reward += 0.01
         else:
-            self.reward -= 0.02
+            self.reward -= 0.002
 
         # punish going into slot of width 1
         if player.food > 10 and not self.did_turn:
             self.straight_sackgasse(game, player)
 
         if player.food > 10 and self.did_turn:
-            self.punish_loop(game, player)
+            self.punish_loop(game, player, curr_move)
 
         return self.reward
 
