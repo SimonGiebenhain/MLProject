@@ -8,7 +8,7 @@ import seaborn as sns
 import numpy as np
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = False
+display_option = True
 speed = 25
 pygame.font.init()
 
@@ -38,6 +38,8 @@ class Player(object):
         self.position = []
         self.position.append([self.x, self.y])
         self.food = 1
+        self.food_distance = 0
+        self.food_distance_old = 10 # make sure no reward for first move
         self.eaten = False
         self.image = pygame.image.load('img/snakeBody.png')
         self.x_change = 20
@@ -55,10 +57,13 @@ class Player(object):
         move_array = [self.x_change, self.y_change]
 
         if self.eaten:
-
             self.position.append([self.x, self.y])
             self.eaten = False
             self.food = self.food + 1
+
+        self.food_distance_old = self.food_distance
+        self.food_distance = abs(game.food.x_food - self.x) + abs(game.food.y_food - self.y)
+
         if np.array_equal(move ,[1, 0, 0]):
             move_array = self.x_change, self.y_change
         elif np.array_equal(move,[0, 1, 0]) and self.y_change == 0:  # right - going horizontal
@@ -78,7 +83,7 @@ class Player(object):
             game.crash_reason = 0
         elif [self.x, self.y] in self.position:
             game.crash = True
-            game.crash_reason = 20
+            game.crash_reason = 10
         eat(self, food, game)
 
         self.update_position(self.x, self.y)
@@ -164,7 +169,7 @@ def initialize_game(player, game, food, agent):
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food, agent)
     state_init2 = agent.get_state(game, player, food)
-    reward1 = agent.set_reward(player, game.crash, game.crash_reason)
+    reward1 = agent.set_reward(game, player, game.crash, game.crash_reason)
     agent.remember(state_init1, action, reward1, state_init2, game.crash)
     agent.replay_new(agent.memory)
 
@@ -182,6 +187,7 @@ def run():
     score_plot = []
     counter_plot =[]
     record = 0
+    less_randomness = 0
     while counter_games < 500:
         # Initialize classes
         game = Game(440, 440)
@@ -195,13 +201,13 @@ def run():
 
         while not game.crash:
             #agent.epsilon is set to give randomness to actions
-            agent.epsilon = 80 - counter_games
+            agent.epsilon = 80 - counter_games/2 - less_randomness/2
             
             #get old state
             state_old = agent.get_state(game, player1, food1)
             
             #perform random actions based on agent.epsilon, or choose the action
-            if randint(0, 200) < agent.epsilon:
+            if agent.epsilon > 0 and randint(0, 200) < agent.epsilon:
                 final_move = to_categorical(randint(0, 2), num_classes=3)
             else:
                 # predict action based on the old state
@@ -224,7 +230,7 @@ def run():
             state_new = agent.get_state(game, player1, food1)
             
             #set treward for the new state
-            reward = agent.set_reward(player1, game.crash, game.crash_reason)
+            reward = agent.set_reward(game, player1, game.crash, game.crash_reason)
             
             #train short memory base on the new action and state
             agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)
@@ -235,11 +241,14 @@ def run():
             if display_option:
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
-        
+
+        print(agent.epsilon)
         agent.replay_new(agent.memory)
         counter_games += 1
         print('Game', counter_games, '      Score:', game.score)
         score_plot.append(game.score)
+        if game.score > 3:
+            less_randomness += 10
         counter_plot.append(counter_games)
     agent.model.save_weights('weights.hdf5')
     plot_seaborn(counter_plot, score_plot)
