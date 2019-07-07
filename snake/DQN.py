@@ -14,12 +14,12 @@ class DQNAgent(object):
 
     def __init__(self):
         self.reward = 0
-        self.gamma = 0.9
+        self.gamma = 0.95 # TODO check whether higher values work, maybe smaller learning rate or with different representation
         self.dataframe = pd.DataFrame()
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        self.state_length = 21
+        self.state_length = 18
         self.learning_rate = 0.0005
         self.did_turn = 0
         self.last_move = [1, 0, 0]
@@ -70,13 +70,17 @@ class DQNAgent(object):
             else:
                 state[i]=0
 
-        state.append(self.last_move[1]*self.move_count/10)
-        state.append(self.last_move[2]*self.move_count/10)
+        #state.append((food.x_food - player.x) / game.game_width),  # food x difference
+        #state.append((food.y_food - player.y) / game.game_height)  # food y difference
+
+        #state.append(self.last_move[1]*self.move_count/10)
+        #state.append(self.last_move[2]*self.move_count/10)
+
 
 
         # TODO:
         # add length of snake to state
-        state.append(player.food/game.game_width)
+        #state.append(player.food/game.game_width)
 
         # calculate distances to next wall in each direction as additional information
         if player.x_change == -20:
@@ -402,30 +406,30 @@ class DQNAgent(object):
         #       - was noch?
         self.reward = 0
         if crash:
-            self.reward = -10 - crash_reason
+            self.reward = -10 #- crash_reason
             return self.reward
         elif player.eaten:
-            self.reward = 5 + player.food/10
+            self.reward = 10 #5 + player.food/10
         #elif self.last_move == 1:
         #    self.reward += -0.03
 
         # going in circles
-        if player.food > 10:
-            if self.move_count >= 3 and self.did_turn:
-                self.reward -= self.move_count/5
+        #if player.food > 10:
+        #    if self.move_count >= 3 and self.did_turn:
+        #        self.reward -= self.move_count/5
                 #print('move count: ', self.move_count)
         # go towards food, else get reckt
-        if player.food_distance < player.food_distance_old:
-            self.reward += 0.01
-        else:
-            self.reward -= 0.002
+        #if player.food_distance < player.food_distance_old:
+        #    self.reward += 0.01
+        #else:
+        #    self.reward -= 0.002
 
         # punish going into slot of width 1
-        if player.food > 10 and not self.did_turn:
-            self.straight_sackgasse(game, player)
+        #if player.food > 10 and not self.did_turn:
+        #    self.straight_sackgasse(game, player)
 
-        if player.food > 10 and self.did_turn:
-            self.punish_loop(game, player, curr_move)
+        #if player.food > 10 and self.did_turn:
+        #    self.punish_loop(game, player, curr_move)
 
         return self.reward
 

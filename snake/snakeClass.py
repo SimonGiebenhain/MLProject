@@ -1,4 +1,7 @@
 import pygame
+from pygame.locals import *
+import time
+
 from random import randint
 from DQN import DQNAgent
 import numpy as np
@@ -6,23 +9,25 @@ from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+from math import sqrt
 
 # Set options to activate or deactivate the game view, and its speed
 display_option = True
-speed = 25
+speed = 50
 pygame.font.init()
 
 
 class Game:
 
     def __init__(self, game_width, game_height):
-        pygame.display.set_caption('SnakeGen')
+        pygame.display.set_caption('Snake')
         self.game_width = game_width
         self.game_height = game_height
         self.gameDisplay = pygame.display.set_mode((game_width, game_height+60))
-        self.bg = pygame.image.load("img/background.png")
+        self.bg = pygame.image.load("img/background.png") # TODO: put grid in background image?
         self.crash = False
         self.crash_reason = 0
+        self.human = False
         self.player = Player(self)
         self.food = Food()
         self.score = 0
@@ -35,8 +40,7 @@ class Player(object):
         y = 0.5 * game.game_height
         self.x = x - x % 20
         self.y = y - y % 20
-        self.position = []
-        self.position.append([self.x, self.y])
+        self.position = [ [self.x, self.y] ]
         self.food = 1
         self.food_distance = 0
         self.food_distance_old = 10 # make sure no reward for first move
@@ -161,7 +165,7 @@ def display(player, food, game, record):
 
 def update_screen():
     pygame.display.update()
-    pygame.event.get()
+    #pygame.event.get()
 
 
 def initialize_game(player, game, food, agent):
@@ -201,18 +205,57 @@ def run():
 
         while not game.crash:
             #agent.epsilon is set to give randomness to actions
-            agent.epsilon = 80 - counter_games/2 - less_randomness/2
-            
+            #agent.epsilon = 1/(2*sqrt(counter_games) + 1)
+            #agent.epsilon = 80 - counter_games #- less_randomness/2
+            agent.epsilon = 0
             #get old state
-            state_old = agent.get_state(game, player1, food1)
-            
-            #perform random actions based on agent.epsilon, or choose the action
-            if agent.epsilon > 0 and randint(0, 200) < agent.epsilon:
-                final_move = to_categorical(randint(0, 2), num_classes=3)
+            if not game.human:
+                state_old = agent.get_state(game, player1, food1)
+
+                #perform random actions based on agent.epsilon, or choose the action
+                if agent.epsilon > 0 and randint(0, 200) < agent.epsilon:
+                #if np.random.uniform() <= agent.epsilon:
+                    final_move = to_categorical(randint(0, 2), num_classes=3)
+                else:
+                    # predict action based on the old state
+                    prediction = agent.model.predict(state_old.reshape((1,agent.state_length)))
+                    final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
             else:
-                # predict action based on the old state
-                prediction = agent.model.predict(state_old.reshape((1,agent.state_length)))
-                final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
+                final_move = [1, 0, 0]
+
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if game.human and event.key == pygame.K_RIGHT:
+                        print('right')
+
+                        if player1.y_change == 20:
+                            final_move = [0, 0, 1]
+                        elif player1.y_change == -20:
+                            final_move = [0, 1, 0]
+                    if game.human and event.key == pygame.K_LEFT:
+                        print('left')
+
+                        if player1.y_change == 20:
+                            final_move = [0, 1, 0]
+                        elif player1.y_change == -20:
+                            final_move = [0, 0, 1]
+                    if game.human and event.key == pygame.K_UP:
+                        print('up')
+
+                        if player1.x_change == 20:
+                            final_move = [0, 0, 1]
+                        elif player1.x_change == -20:
+                            final_move = [0, 1, 0]
+                    if game.human and event.key == pygame.K_DOWN:
+                        print('down')
+
+                        if player1.x_change == 20:
+                            final_move = [0, 1, 0]
+                        elif player1.x_change == -20:
+                            final_move = [0, 0, 1]
+                    if event.key == pygame.K_ESCAPE:
+                        game.human = not game.human
 
             if np.array_equal(final_move, [1, 0, 0]):
                 agent.did_turn = 0
@@ -251,6 +294,84 @@ def run():
             less_randomness += 10
         counter_plot.append(counter_games)
     agent.model.save_weights('weights.hdf5')
+    plot_seaborn(counter_plot, score_plot)
+
+def run_human():
+    pygame.init()
+    agent = DQNAgent()
+    counter_games = 0
+    score_plot = []
+    counter_plot = []
+    record = 0
+    less_randomness = 0
+    while counter_games < 500:
+        # Initialize classes
+        game = Game(440, 440)
+        player1 = game.player
+        food1 = game.food
+
+        # Perform first move
+        initialize_game(player1, game, food1, agent)
+        if display_option:
+            display(player1, food1, game, record)
+
+        while not game.crash:
+
+            #TODO key listener store in final_move
+
+
+            final_move = [1, 0, 0]
+
+            events = pygame.event.get()
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RIGHT:
+                        print('right')
+
+                        if player1.y_change == 20:
+                            final_move = [0, 0, 1]
+                        elif player1.y_change == -20:
+                            final_move = [0, 1, 0]
+                    if event.key == pygame.K_LEFT:
+                        print('left')
+
+                        if player1.y_change == 20:
+                            final_move = [0, 1, 0]
+                        elif player1.y_change == -20:
+                            final_move = [0, 0, 1]
+                    if event.key == pygame.K_UP:
+                        print('up')
+
+                        if player1.x_change == 20:
+                            final_move = [0, 0, 1]
+                        elif player1.x_change == -20:
+                            final_move = [0, 1, 0]
+                    if event.key == pygame.K_DOWN:
+                        print('down')
+
+                        if player1.x_change == 20:
+                            final_move = [0, 1, 0]
+                        elif player1.x_change == -20:
+                            final_move = [0, 0, 1]
+                    if event.key == pygame.K_ESCAPE:
+                        game.crash = 1
+
+
+
+
+            # perform new move and get new state
+            player1.do_move(final_move, player1.x, player1.y, game, food1, agent)
+
+
+            record = get_record(game.score, record)
+            if display_option:
+                display(player1, food1, game, record)
+                pygame.time.wait(speed)
+
+        counter_games += 1
+        print('Game', counter_games, '      Score:', game.score)
+        score_plot.append(game.score)
+        counter_plot.append(counter_games)
     plot_seaborn(counter_plot, score_plot)
 
 
