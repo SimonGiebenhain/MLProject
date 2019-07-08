@@ -14,7 +14,7 @@ import numpy as np
 from math import sqrt
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = True
+display_option = False
 speed = 50
 pygame.font.init()
 
@@ -108,6 +108,101 @@ class Player(object):
             pygame.time.wait(500)
 
 
+def correct_move(game, player, final_move):
+
+
+     x = player.x
+     y = player.y
+     body = player.position
+
+     danger_straight = False
+     if player.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+        danger_straight = True
+     elif player.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+        danger_straight = True
+     elif player.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+        danger_straight = True
+     elif player.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+        danger_straight = True
+
+     danger_right = False
+     if player.x_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+        danger_right = True
+     elif player.x_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+        danger_right = True
+     elif player.y_change == 20 and ([x - 20, y] in body or x - 20 < 20):
+        danger_right = True
+     elif player.y_change == -20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+        danger_right = True
+
+     danger_left = False
+     if player.x_change == 20 and ([x, y - 20] in body or y - 20 < 20):
+        danger_left = True
+     elif player.x_change == -20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+        danger_left = True
+     elif player.y_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+        danger_left = True
+     elif player.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+        danger_left = True
+
+     if not (danger_straight and danger_right and danger_left):
+        if np.array_equal(final_move, [1, 0, 0]) and danger_straight:
+            if not danger_left:
+                final_move = [0,0,1]
+            else:
+                final_move = [0,1,0]
+        elif np.array_equal(final_move, [0, 1, 0]) and danger_right:
+            if not danger_left:
+                final_move = [0,0,1]
+            else:
+                final_move = [1,0,0]
+        elif np.array_equal(final_move, [0, 0, 1]) and danger_left:
+            if not danger_right:
+                final_move = [0,1,0]
+            else:
+                final_move = [1,0,0]
+     else:
+        print('WTF')
+
+     return final_move
+
+def human_move(game, player):
+    final_move = [1, 0, 0]
+    events = pygame.event.get()
+    for event in events:
+        if event.type == pygame.KEYDOWN:
+            if game.human and event.key == pygame.K_RIGHT:
+                print('right')
+
+                if player.y_change == 20:
+                    final_move = [0, 0, 1]
+                elif player.y_change == -20:
+                    final_move = [0, 1, 0]
+            if game.human and event.key == pygame.K_LEFT:
+                print('left')
+
+                if player.y_change == 20:
+                    final_move = [0, 1, 0]
+                elif player.y_change == -20:
+                    final_move = [0, 0, 1]
+            if game.human and event.key == pygame.K_UP:
+                print('up')
+
+                if player.x_change == 20:
+                    final_move = [0, 0, 1]
+                elif player.x_change == -20:
+                    final_move = [0, 1, 0]
+            if game.human and event.key == pygame.K_DOWN:
+                print('down')
+
+                if player.x_change == 20:
+                    final_move = [0, 1, 0]
+                elif player.x_change == -20:
+                    final_move = [0, 0, 1]
+            if event.key == pygame.K_ESCAPE:
+                game.human = not game.human
+    return final_move
+
 class Food(object):
 
     def __init__(self):
@@ -175,7 +270,7 @@ def initialize_game(player, game, food, agent):
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food, agent)
     state_init2 = agent.get_state(game, player, food)
-    reward1 = agent.set_reward(game, player, game.crash, game.crash_reason, action)
+    reward1 = agent.set_reward(game, player, game.crash, game.crash_reason, action, state_init1)
     agent.remember(state_init1, action, reward1, state_init2, game.crash)
     agent.replay_new(agent.memory)
 
@@ -225,95 +320,13 @@ def run():
                     prediction = agent.model.predict(state_old.reshape((1,agent.state_length)))
                     final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
 
-                #x = player1.x
-                #y = player1.y
-                #body = player1.position
-#
-                #danger_straight = False
-                #if player1.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
-                #    danger_straight = True
-                #elif player1.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
-                #    danger_straight = True
-                #elif player1.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
-                #    danger_straight = True
-                #elif player1.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
-                #    danger_straight = True
-#
-                #danger_right = False
-                #if player1.x_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
-                #    danger_right = True
-                #elif player1.x_change == -20 and ([x, y - 20] in body or y - 20 < 20):
-                #    danger_right = True
-                #elif player1.y_change == 20 and ([x - 20, y] in body or x - 20 < 20):
-                #    danger_right = True
-                #elif player1.y_change == -20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
-                #    danger_right = True
-#
-                #danger_left = False
-                #if player1.x_change == 20 and ([x, y - 20] in body or y - 20 < 20):
-                #    danger_left = True
-                #elif player1.x_change == -20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
-                #    danger_left = True
-                #elif player1.y_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
-                #    danger_left = True
-                #elif player1.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
-                #    danger_left = True
-#
-                #if not (danger_straight and danger_right and danger_left):
-                #    if np.array_equal(final_move, [1, 0, 0]) and danger_straight:
-                #        if not danger_left:
-                #            final_move = [0,0,1]
-                #        else:
-                #            final_move = [0,1,0]
-                #    elif np.array_equal(final_move, [0, 1, 0]) and danger_right:
-                #        if not danger_left:
-                #            final_move = [0,0,1]
-                #        else:
-                #            final_move = [1,0,0]
-                #    elif np.array_equal(final_move, [0, 0, 1]) and danger_left:
-                #        if not danger_right:
-                #            final_move = [0,1,0]
-                #        else:
-                #            final_move = [1,0,0]
-                #else:
-                #    print('WTF')
+                    final_move = correct_move(game, player1, final_move)
 
             else:
                 final_move = [1, 0, 0]
 
-            events = pygame.event.get()
-            for event in events:
-                if event.type == pygame.KEYDOWN:
-                    if game.human and event.key == pygame.K_RIGHT:
-                        print('right')
+            final_move = human_move(game, player1)
 
-                        if player1.y_change == 20:
-                            final_move = [0, 0, 1]
-                        elif player1.y_change == -20:
-                            final_move = [0, 1, 0]
-                    if game.human and event.key == pygame.K_LEFT:
-                        print('left')
-
-                        if player1.y_change == 20:
-                            final_move = [0, 1, 0]
-                        elif player1.y_change == -20:
-                            final_move = [0, 0, 1]
-                    if game.human and event.key == pygame.K_UP:
-                        print('up')
-
-                        if player1.x_change == 20:
-                            final_move = [0, 0, 1]
-                        elif player1.x_change == -20:
-                            final_move = [0, 1, 0]
-                    if game.human and event.key == pygame.K_DOWN:
-                        print('down')
-
-                        if player1.x_change == 20:
-                            final_move = [0, 1, 0]
-                        elif player1.x_change == -20:
-                            final_move = [0, 0, 1]
-                    if event.key == pygame.K_ESCAPE:
-                        game.human = not game.human
 
             if np.array_equal(final_move, [1, 0, 0]):
                 agent.did_turn = 0
@@ -331,7 +344,7 @@ def run():
             state_new = agent.get_state(game, player1, food1)
             
             #set treward for the new state
-            reward = agent.set_reward(game, player1, game.crash, game.crash_reason, final_move)
+            reward = agent.set_reward(game, player1, game.crash, game.crash_reason, final_move, state_old)
             
             #train short memory base on the new action and state
             agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)

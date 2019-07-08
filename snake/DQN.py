@@ -30,15 +30,15 @@ class DQNAgent(object):
         self.actual = []
         self.memory = []
 
-    def get_state(self, game, player, food):
+    def get_immediate_danger(self, game, player):
         x = player.x
         y = player.y
         body = player.position
 
         danger_straight = 0
-        if player.x_change == 20 and ([x+20,y] in body or x + 20 >= game.game_width - 20):
+        if player.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
             danger_straight = 1
-        elif player.x_change == -20 and ([x-20,y] in body or x - 20 < 20):
+        elif player.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
             danger_straight = 1
         elif player.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
             danger_straight = 1
@@ -46,11 +46,11 @@ class DQNAgent(object):
             danger_straight = 1
 
         danger_right = 0
-        if player.x_change == 20 and ([x,y+20] in body or y + 20 >= game.game_height - 20):
+        if player.x_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
             danger_right = 1
-        elif player.x_change == -20 and ([x,y-20] in body or y - 20 < 20):
+        elif player.x_change == -20 and ([x, y - 20] in body or y - 20 < 20):
             danger_right = 1
-        elif player.y_change == 20 and ([x-20, y] in body or x - 20 < 20):
+        elif player.y_change == 20 and ([x - 20, y] in body or x - 20 < 20):
             danger_right = 1
         elif player.y_change == -20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
             danger_right = 1
@@ -64,6 +64,12 @@ class DQNAgent(object):
             danger_left = 1
         elif player.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
             danger_left = 1
+
+        return danger_straight, danger_right, danger_left
+
+    def get_state(self, game, player, food):
+
+
 
         state = [
 
@@ -113,12 +119,7 @@ class DQNAgent(object):
                 state[i]=0
 
 
-        if state[0] != danger_straight:
-            print('straight wtf')
-        if state[1] != danger_right:
-            print('right wtf')
-        if state[2] != danger_left:
-            print('left wtf')
+
         #state.append((food.x_food - player.x) / game.game_width),  # food x difference
         #state.append((food.y_food - player.y) / game.game_height)  # food y difference
 
@@ -134,27 +135,27 @@ class DQNAgent(object):
         # calculate distances to next wall in each direction as additional information
         if player.x_change == -20:
             d_wall_straight = player.position[-1][0] / game.game_width
-            d_wall_backwards = 1 - d_wall_straight
+            d_wall_backwards = (game.game_width - player.position[-1][0]) / game.game_width
             d_wall_right = player.position[-1][1] / game.game_height
-            d_wall_left = 1 - d_wall_right
+            d_wall_left = (game.game_height - player.position[-1][1]) / game.game_height
 
         elif player.x_change == 20:
             d_wall_straight = (game.game_width - player.position[-1][0]) / game.game_width
-            d_wall_backwards = 1 - d_wall_straight
+            d_wall_backwards = player.position[-1][0] / game.game_width
             d_wall_right = (game.game_height - player.position[-1][1]) / game.game_height
-            d_wall_left = 1 - d_wall_right
+            d_wall_left = player.position[-1][1] / game.game_height
 
         elif player.y_change == -20:
             d_wall_straight = player.position[-1][1] / game.game_height
-            d_wall_backwards = 1 - d_wall_straight
-            d_wall_right = (game.game_width - player.position[-1][1]) / game.game_width
-            d_wall_left = 1 - d_wall_right
+            d_wall_backwards = (game.game_height - player.position[-1][1]) / game.game_height
+            d_wall_right = (game.game_width - player.position[-1][0]) / game.game_width
+            d_wall_left = player.position[-1][0] / game.game_width
 
         else:
             d_wall_straight = (game.game_height - player.position[-1][1]) / game.game_height
-            d_wall_backwards = 1 - d_wall_straight
-            d_wall_right = player.position[-1][1] / game.game_width
-            d_wall_left = 1 - d_wall_right
+            d_wall_backwards = player.position[-1][1] / game.game_height
+            d_wall_right = player.position[-1][0] / game.game_width
+            d_wall_left = (game.game_width - player.position[-1][0]) / game.game_width
 
 
         # calculate distances to own body, if none than use distance to next wall
@@ -446,7 +447,7 @@ class DQNAgent(object):
                         print('punished loop')
 
 
-    def set_reward(self, game, player, crash, crash_reason, curr_move):
+    def set_reward(self, game, player, crash, crash_reason, curr_move, state_old):
 
         #TODO:
         #       - sind viele kurven wirklich schlecht? immerhin kann es eine kompakte schlange geben
@@ -456,7 +457,8 @@ class DQNAgent(object):
         #       - was noch?
         self.reward = 0
         if crash:
-            self.reward = -10 #- crash_reason
+            if not (state_old[0] == 1 and state_old[1] == 1 and state_old[2] == 1):
+                self.reward = -10 #- crash_reason
             return self.reward
         elif player.eaten:
             self.reward = 1 #5 + player.food/10
