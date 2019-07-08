@@ -19,7 +19,7 @@ class DQNAgent(object):
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        self.state_length = 18
+        self.state_length = 11
         self.learning_rate = 0.0005
         self.did_turn = 0
         self.last_move = [1, 0, 0]
@@ -31,23 +31,65 @@ class DQNAgent(object):
         self.memory = []
 
     def get_state(self, game, player, food):
+        x = player.x
+        y = player.y
+        body = player.position
+
+        danger_straight = 0
+        if player.x_change == 20 and ([x+20,y] in body or x + 20 >= game.game_width - 20):
+            danger_straight = 1
+        elif player.x_change == -20 and ([x-20,y] in body or x - 20 < 20):
+            danger_straight = 1
+        elif player.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+            danger_straight = 1
+        elif player.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+            danger_straight = 1
+
+        danger_right = 0
+        if player.x_change == 20 and ([x,y+20] in body or y + 20 >= game.game_height - 20):
+            danger_right = 1
+        elif player.x_change == -20 and ([x,y-20] in body or y - 20 < 20):
+            danger_right = 1
+        elif player.y_change == 20 and ([x-20, y] in body or x - 20 < 20):
+            danger_right = 1
+        elif player.y_change == -20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+            danger_right = 1
+
+        danger_left = 0
+        if player.x_change == 20 and ([x, y - 20] in body or y - 20 < 20):
+            danger_left = 1
+        elif player.x_change == -20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+            danger_left = 1
+        elif player.y_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+            danger_left = 1
+        elif player.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+            danger_left = 1
 
         state = [
-            (player.x_change == 20 and player.y_change == 0 and ((list(map(add, player.position[-1], [20, 0])) in player.position) or
-            player.position[-1][0] + 20 >= (game.game_width - 20))) or (player.x_change == -20 and player.y_change == 0 and ((list(map(add, player.position[-1], [-20, 0])) in player.position) or
-            player.position[-1][0] - 20 < 20)) or (player.x_change == 0 and player.y_change == -20 and ((list(map(add, player.position[-1], [0, -20])) in player.position) or
-            player.position[-1][-1] - 20 < 20)) or (player.x_change == 0 and player.y_change == 20 and ((list(map(add, player.position[-1], [0, 20])) in player.position) or
-            player.position[-1][-1] + 20 >= (game.game_height-20))),  # danger straight
+
+            (player.x_change == 20 and player.y_change == 0 and (
+                    (list(map(add, player.position[-1], [20, 0])) in player.position) or
+                    player.position[-1][0] + 20 >= (game.game_width - 20))) or (
+                    player.x_change == -20 and player.y_change == 0 and (
+                    (list(map(add, player.position[-1], [-20, 0])) in player.position) or
+                    player.position[-1][0] - 20 < 20)) or (
+                    player.x_change == 0 and player.y_change == -20 and (
+                    (list(map(add, player.position[-1], [0, -20])) in player.position) or
+                    player.position[-1][-1] - 20 < 20)) or (
+                    player.x_change == 0 and player.y_change == 20 and (
+                    (list(map(add, player.position[-1], [0, 20])) in player.position) or
+                    player.position[-1][-1] + 20 >= (game.game_height - 20))),
+
 
             (player.x_change == 0 and player.y_change == -20 and ((list(map(add,player.position[-1],[20, 0])) in player.position) or
-            player.position[ -1][0] + 20 > (game.game_width-20))) or (player.x_change == 0 and player.y_change == 20 and ((list(map(add,player.position[-1],
+            player.position[ -1][0] + 20 >= (game.game_width-20))) or (player.x_change == 0 and player.y_change == 20 and ((list(map(add,player.position[-1],
             [-20,0])) in player.position) or player.position[-1][0] - 20 < 20)) or (player.x_change == -20 and player.y_change == 0 and ((list(map(
             add,player.position[-1],[0,-20])) in player.position) or player.position[-1][-1] - 20 < 20)) or (player.x_change == 20 and player.y_change == 0 and (
             (list(map(add,player.position[-1],[0,20])) in player.position) or player.position[-1][
              -1] + 20 >= (game.game_height-20))),  # danger right
 
              (player.x_change == 0 and player.y_change == 20 and ((list(map(add,player.position[-1],[20,0])) in player.position) or
-             player.position[-1][0] + 20 > (game.game_width-20))) or (player.x_change == 0 and player.y_change == -20 and ((list(map(
+             player.position[-1][0] + 20 >= (game.game_width-20))) or (player.x_change == 0 and player.y_change == -20 and ((list(map(
              add, player.position[-1],[-20,0])) in player.position) or player.position[-1][0] - 20 < 20)) or (player.x_change == 20 and player.y_change == 0 and (
             (list(map(add,player.position[-1],[0,-20])) in player.position) or player.position[-1][-1] - 20 < 20)) or (
             player.x_change == -20 and player.y_change == 0 and ((list(map(add,player.position[-1],[0,20])) in player.position) or
@@ -70,6 +112,13 @@ class DQNAgent(object):
             else:
                 state[i]=0
 
+
+        if state[0] != danger_straight:
+            print('straight wtf')
+        if state[1] != danger_right:
+            print('right wtf')
+        if state[2] != danger_left:
+            print('left wtf')
         #state.append((food.x_food - player.x) / game.game_width),  # food x difference
         #state.append((food.y_food - player.y) / game.game_height)  # food y difference
 
@@ -213,13 +262,13 @@ class DQNAgent(object):
                 closest = game.game_width
             d_body_left = (closest - y) / game.game_width
 
-        state.append(d_body_straight)
-        state.append(d_body_left)
-        state.append(d_body_right)
-        state.append(d_wall_right)
-        state.append(d_wall_straight)
-        state.append(d_wall_backwards)
-        state.append(d_wall_left)
+        #state.append(d_body_straight)
+        #state.append(d_body_left)
+        #state.append(d_body_right)
+        #state.append(d_wall_right)
+        #state.append(d_wall_straight)
+        #state.append(d_wall_backwards)
+        #state.append(d_wall_left)
 
 
         # TODO: use more rays
@@ -398,6 +447,7 @@ class DQNAgent(object):
 
 
     def set_reward(self, game, player, crash, crash_reason, curr_move):
+
         #TODO:
         #       - sind viele kurven wirklich schlecht? immerhin kann es eine kompakte schlange geben
         #       - check for closed loops in reward and give -100 or smth.
@@ -409,10 +459,10 @@ class DQNAgent(object):
             self.reward = -10 #- crash_reason
             return self.reward
         elif player.eaten:
-            self.reward = 10 #5 + player.food/10
+            self.reward = 1 #5 + player.food/10
         #elif self.last_move == 1:
         #    self.reward += -0.03
-
+        #TODO: wenn keine andere wahl don't punish!!
         # going in circles
         #if player.food > 10:
         #    if self.move_count >= 3 and self.did_turn:

@@ -1,6 +1,8 @@
 import pygame
 from pygame.locals import *
 import time
+from operator import add
+11
 
 from random import randint
 from DQN import DQNAgent
@@ -118,7 +120,7 @@ class Food(object):
         self.x_food = x_rand - x_rand % 20
         y_rand = randint(20, game.game_height - 40)
         self.y_food = y_rand - y_rand % 20
-        if [self.x_food, self.y_food] not in player.position:
+        if [self.x_food, self.y_food] not in player.position and (self.x_food != player.x and self.y_food != player.y):
             return self.x_food, self.y_food
         else:
             self.food_coord(game,player)
@@ -206,8 +208,10 @@ def run():
         while not game.crash:
             #agent.epsilon is set to give randomness to actions
             #agent.epsilon = 1/(2*sqrt(counter_games) + 1)
-            #agent.epsilon = 80 - counter_games #- less_randomness/2
-            agent.epsilon = 0
+            #if counter_games > 150:
+            #    agent.epsilon = 0
+            agent.epsilon = 80 - counter_games #- less_randomness/2
+            #agent.epsilon = 0
             #get old state
             if not game.human:
                 state_old = agent.get_state(game, player1, food1)
@@ -220,6 +224,60 @@ def run():
                     # predict action based on the old state
                     prediction = agent.model.predict(state_old.reshape((1,agent.state_length)))
                     final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
+
+                #x = player1.x
+                #y = player1.y
+                #body = player1.position
+#
+                #danger_straight = False
+                #if player1.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+                #    danger_straight = True
+                #elif player1.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+                #    danger_straight = True
+                #elif player1.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+                #    danger_straight = True
+                #elif player1.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+                #    danger_straight = True
+#
+                #danger_right = False
+                #if player1.x_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+                #    danger_right = True
+                #elif player1.x_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+                #    danger_right = True
+                #elif player1.y_change == 20 and ([x - 20, y] in body or x - 20 < 20):
+                #    danger_right = True
+                #elif player1.y_change == -20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+                #    danger_right = True
+#
+                #danger_left = False
+                #if player1.x_change == 20 and ([x, y - 20] in body or y - 20 < 20):
+                #    danger_left = True
+                #elif player1.x_change == -20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+                #    danger_left = True
+                #elif player1.y_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+                #    danger_left = True
+                #elif player1.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+                #    danger_left = True
+#
+                #if not (danger_straight and danger_right and danger_left):
+                #    if np.array_equal(final_move, [1, 0, 0]) and danger_straight:
+                #        if not danger_left:
+                #            final_move = [0,0,1]
+                #        else:
+                #            final_move = [0,1,0]
+                #    elif np.array_equal(final_move, [0, 1, 0]) and danger_right:
+                #        if not danger_left:
+                #            final_move = [0,0,1]
+                #        else:
+                #            final_move = [1,0,0]
+                #    elif np.array_equal(final_move, [0, 0, 1]) and danger_left:
+                #        if not danger_right:
+                #            final_move = [0,1,0]
+                #        else:
+                #            final_move = [1,0,0]
+                #else:
+                #    print('WTF')
+
             else:
                 final_move = [1, 0, 0]
 
