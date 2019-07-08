@@ -19,7 +19,7 @@ class DQNAgent(object):
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        self.state_length = 11
+        self.state_length = 18
         self.learning_rate = 0.0005
         self.did_turn = 0
         self.last_move = [1, 0, 0]
@@ -163,6 +163,7 @@ class DQNAgent(object):
             x = player.position[-1][0]
             y = player.position[-1][1]
 
+            # straight
             candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
             if candidates:
                 closest = max( candidates )
@@ -170,6 +171,7 @@ class DQNAgent(object):
                 closest = 0
             d_body_straight = (x - closest) / game.game_width
 
+            # right
             candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
             if candidates:
                 closest = max(candidates)
@@ -177,11 +179,12 @@ class DQNAgent(object):
                 closest = 0
             d_body_right = (y - closest) / game.game_height
 
+            # left
             candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
             if candidates:
-                closest = max(candidates)
+                closest = min(candidates)
             else:
-                closest = game.game_height
+                closest = game.game_height - 20
             d_body_left = (closest - y) / game.game_height
 
 
@@ -189,20 +192,23 @@ class DQNAgent(object):
             x = player.position[-1][0]
             y = player.position[-1][1]
 
+            # straight
             candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
             if candidates:
-                closest = max(candidates)
+                closest = min(candidates)
             else:
-                closest = game.game_width
+                closest = game.game_width - 20
             d_body_straight = (closest - x) / game.game_width
 
+            # right
             candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
             if candidates:
-                closest = max(candidates)
+                closest = min(candidates)
             else:
-                closest = game.game_height
+                closest = game.game_height - 20
             d_body_right = (closest - y) / game.game_height
 
+            # left
             candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
             if candidates:
                 closest = max(candidates)
@@ -215,26 +221,29 @@ class DQNAgent(object):
             x = player.position[-1][0]
             y = player.position[-1][1]
 
+            # straight
             candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
             if candidates:
                 closest = max(candidates)
             else:
                 closest = 0
-            d_body_straight = (x - closest) / game.game_height
+            d_body_straight = (y - closest) / game.game_height
 
+            # right
             candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
             if candidates:
-                closest = max(candidates)
+                closest = min(candidates)
             else:
-                closest = game.game_width
-            d_body_right = (closest - y) / game.game_width
+                closest = game.game_width - 20
+            d_body_right = (closest - x) / game.game_width
 
+            # left
             candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
             if candidates:
                 closest = max(candidates)
             else:
                 closest = 0
-            d_body_left = (y - closest) / game.game_width
+            d_body_left = (x - closest) / game.game_width
 
 
         #player.y_change == 20:
@@ -242,34 +251,37 @@ class DQNAgent(object):
             x = player.position[-1][0]
             y = player.position[-1][1]
 
+            # straight
             candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
             if candidates:
-                closest = max(candidates)
+                closest = min(candidates)
             else:
-                closest = game.game_height
-            d_body_straight = (closest - x) / game.game_height
+                closest = game.game_height - 20
+            d_body_straight = (closest - y) / game.game_height
 
+            # right
             candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
             if candidates:
                 closest = max(candidates)
             else:
                 closest = 0
-            d_body_right = (y - closest) / game.game_width
+            d_body_right = (x - closest) / game.game_width
 
+            # left
             candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
             if candidates:
-                closest = max(candidates)
+                closest = min(candidates)
             else:
-                closest = game.game_width
-            d_body_left = (closest - y) / game.game_width
+                closest = game.game_width - 20
+            d_body_left = (closest - x) / game.game_width
 
-        #state.append(d_body_straight)
-        #state.append(d_body_left)
-        #state.append(d_body_right)
-        #state.append(d_wall_right)
-        #state.append(d_wall_straight)
-        #state.append(d_wall_backwards)
-        #state.append(d_wall_left)
+        state.append(d_body_straight)
+        state.append(d_body_left)
+        state.append(d_body_right)
+        state.append(d_wall_right)
+        state.append(d_wall_straight)
+        state.append(d_wall_backwards)
+        state.append(d_wall_left)
 
 
         # TODO: use more rays
