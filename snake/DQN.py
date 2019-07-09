@@ -19,16 +19,27 @@ class DQNAgent(object):
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        self.state_length = 18
+        self.state_length = 11
         self.learning_rate = 0.0005
         self.did_turn = 0
         self.last_move = [1, 0, 0]
         self.move_count = 0
-        self.model = self.network()
-        #self.model = self.network("weights.hdf5")
+        self.policy_net = self.network()
+        self.target_net = self.network()
+        self.target_net.set_weights(self.policy_net.get_weights())
+        #self.policy_net = self.network("weights.hdf5")
+        #self.target_net = self.network("weights.hdf5")
+
         self.epsilon = 0
         self.actual = []
         self.memory = []
+        self.memory_position = 0
+        self.memory_state = []
+        self.memory_reward = []
+        self.memory_action = []
+        self.memory_next_state = []
+        self.memory_done = []
+
 
     def get_immediate_danger(self, game, player):
         x = player.x
@@ -67,6 +78,7 @@ class DQNAgent(object):
 
         return danger_straight, danger_right, danger_left
 
+    # TODO: work with body position of next state instead
     def get_state(self, game, player, food):
 
 
@@ -133,155 +145,155 @@ class DQNAgent(object):
         #state.append(player.food/game.game_width)
 
         # calculate distances to next wall in each direction as additional information
-        if player.x_change == -20:
-            d_wall_straight = player.position[-1][0] / game.game_width
-            d_wall_backwards = (game.game_width - player.position[-1][0]) / game.game_width
-            d_wall_right = player.position[-1][1] / game.game_height
-            d_wall_left = (game.game_height - player.position[-1][1]) / game.game_height
+#       if player.x_change == -20:
+#           d_wall_straight = player.position[-1][0] / game.game_width
+#           d_wall_backwards = (game.game_width - player.position[-1][0]) / game.game_width
+#           d_wall_right = player.position[-1][1] / game.game_height
+#           d_wall_left = (game.game_height - player.position[-1][1]) / game.game_height
 
-        elif player.x_change == 20:
-            d_wall_straight = (game.game_width - player.position[-1][0]) / game.game_width
-            d_wall_backwards = player.position[-1][0] / game.game_width
-            d_wall_right = (game.game_height - player.position[-1][1]) / game.game_height
-            d_wall_left = player.position[-1][1] / game.game_height
+#       elif player.x_change == 20:
+#           d_wall_straight = (game.game_width - player.position[-1][0]) / game.game_width
+#           d_wall_backwards = player.position[-1][0] / game.game_width
+#           d_wall_right = (game.game_height - player.position[-1][1]) / game.game_height
+#           d_wall_left = player.position[-1][1] / game.game_height
 
-        elif player.y_change == -20:
-            d_wall_straight = player.position[-1][1] / game.game_height
-            d_wall_backwards = (game.game_height - player.position[-1][1]) / game.game_height
-            d_wall_right = (game.game_width - player.position[-1][0]) / game.game_width
-            d_wall_left = player.position[-1][0] / game.game_width
+#       elif player.y_change == -20:
+#           d_wall_straight = player.position[-1][1] / game.game_height
+#           d_wall_backwards = (game.game_height - player.position[-1][1]) / game.game_height
+#           d_wall_right = (game.game_width - player.position[-1][0]) / game.game_width
+#           d_wall_left = player.position[-1][0] / game.game_width
 
-        else:
-            d_wall_straight = (game.game_height - player.position[-1][1]) / game.game_height
-            d_wall_backwards = player.position[-1][1] / game.game_height
-            d_wall_right = player.position[-1][0] / game.game_width
-            d_wall_left = (game.game_width - player.position[-1][0]) / game.game_width
-
-
-        # calculate distances to own body, if none than use distance to next wall
-        if player.x_change == -20:
-            x = player.position[-1][0]
-            y = player.position[-1][1]
-
-            # straight
-            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
-            if candidates:
-                closest = max( candidates )
-            else:
-                closest = 0
-            d_body_straight = (x - closest) / game.game_width
-
-            # right
-            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
-            if candidates:
-                closest = max(candidates)
-            else:
-                closest = 0
-            d_body_right = (y - closest) / game.game_height
-
-            # left
-            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-            if candidates:
-                closest = min(candidates)
-            else:
-                closest = game.game_height - 20
-            d_body_left = (closest - y) / game.game_height
+#       else:
+#           d_wall_straight = (game.game_height - player.position[-1][1]) / game.game_height
+#           d_wall_backwards = player.position[-1][1] / game.game_height
+#           d_wall_right = player.position[-1][0] / game.game_width
+#           d_wall_left = (game.game_width - player.position[-1][0]) / game.game_width
 
 
-        elif player.x_change == 20:
-            x = player.position[-1][0]
-            y = player.position[-1][1]
+#       # calculate distances to own body, if none than use distance to next wall
+#       if player.x_change == -20:
+#           x = player.position[-1][0]
+#           y = player.position[-1][1]
 
-            # straight
-            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
-            if candidates:
-                closest = min(candidates)
-            else:
-                closest = game.game_width - 20
-            d_body_straight = (closest - x) / game.game_width
+#           # straight
+#           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
+#           if candidates:
+#               closest = max( candidates )
+#           else:
+#               closest = 0
+#           d_body_straight = (x - closest) / game.game_width
 
-            # right
-            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-            if candidates:
-                closest = min(candidates)
-            else:
-                closest = game.game_height - 20
-            d_body_right = (closest - y) / game.game_height
+#           # right
+#           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
+#           if candidates:
+#               closest = max(candidates)
+#           else:
+#               closest = 0
+#           d_body_right = (y - closest) / game.game_height
 
-            # left
-            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
-            if candidates:
-                closest = max(candidates)
-            else:
-                closest = 0
-            d_body_left = (y - closest) / game.game_height
-
-
-        elif player.y_change == -20:
-            x = player.position[-1][0]
-            y = player.position[-1][1]
-
-            # straight
-            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
-            if candidates:
-                closest = max(candidates)
-            else:
-                closest = 0
-            d_body_straight = (y - closest) / game.game_height
-
-            # right
-            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
-            if candidates:
-                closest = min(candidates)
-            else:
-                closest = game.game_width - 20
-            d_body_right = (closest - x) / game.game_width
-
-            # left
-            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
-            if candidates:
-                closest = max(candidates)
-            else:
-                closest = 0
-            d_body_left = (x - closest) / game.game_width
+#           # left
+#           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+#           if candidates:
+#               closest = min(candidates)
+#           else:
+#               closest = game.game_height - 20
+#           d_body_left = (closest - y) / game.game_height
 
 
-        #player.y_change == 20:
-        else:
-            x = player.position[-1][0]
-            y = player.position[-1][1]
+#       elif player.x_change == 20:
+#           x = player.position[-1][0]
+#           y = player.position[-1][1]
 
-            # straight
-            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-            if candidates:
-                closest = min(candidates)
-            else:
-                closest = game.game_height - 20
-            d_body_straight = (closest - y) / game.game_height
+#           # straight
+#           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
+#           if candidates:
+#               closest = min(candidates)
+#           else:
+#               closest = game.game_width - 20
+#           d_body_straight = (closest - x) / game.game_width
 
-            # right
-            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
-            if candidates:
-                closest = max(candidates)
-            else:
-                closest = 0
-            d_body_right = (x - closest) / game.game_width
+#           # right
+#           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+#           if candidates:
+#               closest = min(candidates)
+#           else:
+#               closest = game.game_height - 20
+#           d_body_right = (closest - y) / game.game_height
 
-            # left
-            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-            if candidates:
-                closest = min(candidates)
-            else:
-                closest = game.game_width - 20
-            d_body_left = (closest - x) / game.game_width
+#           # left
+#           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
+#           if candidates:
+#               closest = max(candidates)
+#           else:
+#               closest = 0
+#           d_body_left = (y - closest) / game.game_height
 
-        state.append(d_body_straight)
-        state.append(d_body_left)
-        state.append(d_body_right)
-        state.append(d_wall_right)
-        state.append(d_wall_straight)
-        state.append(d_wall_backwards)
-        state.append(d_wall_left)
+
+#       elif player.y_change == -20:
+#           x = player.position[-1][0]
+#           y = player.position[-1][1]
+
+#           # straight
+#           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
+#           if candidates:
+#               closest = max(candidates)
+#           else:
+#               closest = 0
+#           d_body_straight = (y - closest) / game.game_height
+
+#           # right
+#           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
+#           if candidates:
+#               closest = min(candidates)
+#           else:
+#               closest = game.game_width - 20
+#           d_body_right = (closest - x) / game.game_width
+
+#           # left
+#           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
+#           if candidates:
+#               closest = max(candidates)
+#           else:
+#               closest = 0
+#           d_body_left = (x - closest) / game.game_width
+
+
+#       #player.y_change == 20:
+#       else:
+#           x = player.position[-1][0]
+#           y = player.position[-1][1]
+
+#           # straight
+#           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+#           if candidates:
+#               closest = min(candidates)
+#           else:
+#               closest = game.game_height - 20
+#           d_body_straight = (closest - y) / game.game_height
+
+#           # right
+#           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
+#           if candidates:
+#               closest = max(candidates)
+#           else:
+#               closest = 0
+#           d_body_right = (x - closest) / game.game_width
+
+#           # left
+#           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+#           if candidates:
+#               closest = min(candidates)
+#           else:
+#               closest = game.game_width - 20
+#           d_body_left = (closest - x) / game.game_width
+
+#       state.append(d_body_straight)
+#       state.append(d_body_left)
+#       state.append(d_body_right)
+#       state.append(d_wall_right)
+#       state.append(d_wall_straight)
+#       state.append(d_wall_backwards)
+#       state.append(d_wall_left)
 
 
         # TODO: use more rays
@@ -290,6 +302,7 @@ class DQNAgent(object):
 
 
 
+        #return np.expand_dims(np.asarray(state), 0)
         return np.asarray(state)
 
 
@@ -471,6 +484,8 @@ class DQNAgent(object):
         if crash:
             if not (state_old[0] == 1 and state_old[1] == 1 and state_old[2] == 1):
                 self.reward = -10 #- crash_reason
+            else:
+                self.reward = -5
             return self.reward
         elif player.eaten:
             self.reward = 1 #5 + player.food/10
@@ -498,7 +513,7 @@ class DQNAgent(object):
         return self.reward
 
 
-
+    # TODO try conv net
     def network(self, weights=None):
         model = Sequential()
         model.add(Dense(output_dim=130, activation='relu', input_dim=self.state_length))
@@ -516,25 +531,74 @@ class DQNAgent(object):
         return model
 
     def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+        if len(self.memory_done) < 50000:
+            self.memory_state.append(state)
+            self.memory_action.append(action)
+            self.memory_reward.append(reward)
+            self.memory_next_state.append(next_state)
+            self.memory_done.append(done)
 
-    def replay_new(self, memory):
-        if len(memory) > 1000:
-            minibatch = random.sample(memory, 1000)
+            self.memory.append((state, action, reward, next_state, done))
         else:
-            minibatch = memory
+            self.memory_state[self.memory_position] = state
+            self.memory_action[self.memory_position] = action
+            self.memory_reward[self.memory_position] = reward
+            self.memory_next_state[self.memory_position] = next_state
+            self.memory_done[self.memory_position] = done
+
+            self.memory[self.memory_position] = (state, action, reward, next_state, done)
+
+            self.memory_position = (self.memory_position + 1) % 50000
+
+    def replay_new_vectorized(self):
+       if len(self.memory_done) > 1000:
+           rng_state = random.getstate()
+           state_minibatch = np.asarray(random.sample(self.memory_state, 1000))
+           random.setstate(rng_state)
+           action_minibatch = np.asarray(random.sample(self.memory_action, 1000))
+           random.setstate(rng_state)
+           reward_minibatch = np.asarray(random.sample(self.memory_reward, 1000))
+           random.setstate(rng_state)
+           next_state_minibatch = np.asarray(random.sample(self.memory_next_state, 1000))
+           random.setstate(rng_state)
+           done_minibatch = np.asarray(random.sample(self.memory_done, 1000))
+       else:
+           state_minibatch = np.asarray(self.memory_state)
+           action_minibatch = np.asarray(self.memory_action)
+           reward_minibatch = np.asarray(self.memory_reward)
+           next_state_minibatch = np.asarray(self.memory_next_state)
+           done_minibatch = np.asarray(self.memory_done)
+
+       for i in range(100):
+          target = reward_minibatch[i*10:(i+1)*10]
+          target[np.invert(done_minibatch[i*10:(i+1)*10])] = target[np.invert(done_minibatch[i*10:(i+1)*10])] + \
+                                              self.gamma * np.amax(self.target_net.predict(next_state_minibatch[i*10:(i+1)*10,:]), 1)[np.invert(done_minibatch[i*10:(i+1)*10])]
+          target_f = self.policy_net.predict(state_minibatch[i*10:(i+1)*10,:])
+          target_f[:,np.argmax(action_minibatch[i*10:(i+1)*10,:],1)] = target
+          self.policy_net.fit(state_minibatch[i*10:(i+1)*10,:], target_f, epochs=1, verbose=0)
+
+
+
+
+    def replay_new(self):
+        if len(self.memory_done) > 1000:
+            minibatch = random.sample(self.memory, 1000)
+        else:
+            minibatch = self.memory
+
+        #TODO: macht das so wirlich sinn? reward kann ja betrag von 10 haben aber die predictions sind immer normalized to norm 1
         for state, action, reward, next_state, done in minibatch:
-            target = reward
-            if not done:
-                target = reward + self.gamma * np.amax(self.model.predict(np.array([next_state]))[0])
-            target_f = self.model.predict(np.array([state]))
-            target_f[0][np.argmax(action)] = target
-            self.model.fit(np.array([state]), target_f, epochs=1, verbose=0)
+           target = reward
+           if not done:
+               target = reward + self.gamma * np.amax(self.target_net.predict(np.array([next_state]))[0])
+           target_f = self.policy_net.predict(np.array([state]))
+           target_f[0][np.argmax(action)] = target
+           self.policy_net.fit(np.array([state]), target_f, epochs=1, verbose=0)
 
     def train_short_memory(self, state, action, reward, next_state, done):
         target = reward
         if not done:
-            target = reward + self.gamma * np.amax(self.model.predict(next_state.reshape((1, self.state_length)))[0])
-        target_f = self.model.predict(state.reshape((1, self.state_length)))
+            target = reward + self.gamma * np.amax(self.target_net.predict(next_state.reshape((1, self.state_length)))[0])
+        target_f = self.policy_net.predict(state.reshape((1, self.state_length)))
         target_f[0][np.argmax(action)] = target
-        self.model.fit(state.reshape((1, self.state_length)), target_f, epochs=1, verbose=0)
+        self.policy_net.fit(state.reshape((1, self.state_length)), target_f, epochs=1, verbose=0)
