@@ -2,7 +2,7 @@ import pygame
 from pygame.locals import *
 
 from random import randint
-from DQN import DQNAgent
+from DQN_conv import DQNAgent
 import numpy as np
 from keras.utils import to_categorical
 import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ import numpy as np
 from math import sqrt
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = False
+display_option = True
 speed = 50
 pygame.font.init()
 
@@ -297,14 +297,17 @@ def run():
         if display_option:
             display(player1, food1, game, record)
 
+        #step = 0
         while not game.crash:
+            #step += 1
+            #if step > 200 and counter_games > 80 and player1.food < 15:
+            #    game.crash = True
+
             # agent.epsilon is set to give randomness to actions
             # agent.epsilon = 1/(2*sqrt(counter_games) + 1)
             # if counter_games > 150:
             #    agent.epsilon = 0
             agent.epsilon = 80 - counter_games  # - less_randomness/2
-            if agent.epsilon <= 0:
-                agent.epsilon = 1
             # agent.epsilon = 0
             # get old state
             if not game.human:
@@ -316,7 +319,10 @@ def run():
                     final_move = to_categorical(randint(0, 2), num_classes=3)
                 else:
                     # predict action based on the old state
-                    prediction = agent.policy_net.predict(state_old.reshape((1, agent.state_length)))
+                    feat = np.expand_dims(state_old[:agent.state_length], 0)
+                    board = state_old[agent.state_length:]
+                    board = np.reshape(board, (1, 20, 20, 2))
+                    prediction = agent.policy_net.predict([feat, board])
                     final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
 
                     #final_move = correct_move(game, player1, final_move)
@@ -352,14 +358,14 @@ def run():
             # store the new data into a long term memory
             agent.remember(state_old, final_move, reward, state_new, game.crash)
             record = get_record(game.score, record)
-            if display_option: #and counter_games % 10 == 0:
+            if display_option and counter_games % 10 == 0:
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
-        if counter_games > 20:
-            agent.replay_new_vectorized()
-        else:
-            agent.replay_new()
+        #if counter_games > 150:
+        #    agent.replay_new_vectorized()
+        #else:
+        agent.replay_new()
 
         counter_games += 1
         print('Game', counter_games, '      Score:', game.score)
@@ -368,8 +374,8 @@ def run():
             less_randomness += 10
         counter_plot.append(counter_games)
 
-        #if counter_games % 20 == 0:
-        agent.target_net.set_weights(agent.policy_net.get_weights())
+        if counter_games % 30 == 0:
+            agent.target_net.set_weights(agent.policy_net.get_weights())
     agent.policy_net.save_weights('weights.hdf5')
     plot_seaborn(counter_plot, score_plot)
 
