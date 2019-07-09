@@ -8,10 +8,11 @@ from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+import torch
 from math import sqrt
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = True
+display_option = False
 speed = 50
 pygame.font.init()
 
@@ -23,7 +24,7 @@ class Game:
         self.game_width = game_width
         self.game_height = game_height
         self.gameDisplay = pygame.display.set_mode((game_width, game_height + 60))
-        self.bg = pygame.image.load("img/background.png")  # TODO: put grid in background image?
+        self.bg = pygame.image.load("/Users/sigi/uni/7sem/ML/MLProject/snake/img/background.png")  # TODO: put grid in background image?
         self.crash = False
         self.crash_reason = 0
         self.human = False
@@ -44,7 +45,7 @@ class Player(object):
         self.food_distance = 0
         self.food_distance_old = 10  # make sure no reward for first move
         self.eaten = False
-        self.image = pygame.image.load('img/snakeBody.png')
+        self.image = pygame.image.load('/Users/sigi/uni/7sem/ML/MLProject/snake/img/snakeBody.png')
         self.x_change = 20
         self.y_change = 0
 
@@ -203,7 +204,7 @@ class Food(object):
     def __init__(self):
         self.x_food = 240
         self.y_food = 200
-        self.image = pygame.image.load('img/food2.png')
+        self.image = pygame.image.load('/Users/sigi/uni/7sem/ML/MLProject/snake/img/food2.png')
 
     def food_coord(self, game, player):
         x_rand = randint(20, game.game_width - 40)
@@ -266,8 +267,10 @@ def initialize_game(player, game, food, agent):
     player.do_move(action, player.x, player.y, game, food)
     state_init2 = agent.get_state(game, player, food)
     reward1 = agent.set_reward(game, player, game.crash, game.crash_reason, action, state_init1)
-    agent.remember(state_init1, action, reward1, state_init2, game.crash)
-    agent.replay_new(agent.memory)
+
+    move = np.argmax(action)
+    agent.memory.push(state_init1, torch.tensor(move), state_init2, reward1)
+    agent.optimize()
 
 
 def plot_seaborn(array_counter, array_score):
@@ -299,13 +302,17 @@ def run():
 
         while not game.crash:
             events = pygame.event.get()
-            agent.epsilon = 200 - counter_games
+            agent.epsilon = 120 - counter_games
 
             if not game.human:
                 state_old = agent.get_state(game, player1, food1)
-                final_move = agent.select_action(state_old)
+                action = agent.select_action(state_old)
+                final_move = np.zeros(3)
+                final_move[action] = 1
             else:
                 final_move = human_move(game, player1, events)
+                action = np.argmax(final_move)
+
 
             if np.array_equal(final_move, [1, 0, 0]):
                 agent.did_turn = 0
@@ -319,13 +326,15 @@ def run():
 
             # perform new move and get new state
             player1.do_move(final_move, player1.x, player1.y, game, food1)
-            state_new = agent.get_state(game, player1, food1)
+            if game.crash:
+                state_new = None
+            else:
+                state_new = agent.get_state(game, player1, food1)
 
             # set treward for the new state
             reward = agent.set_reward(game, player1, game.crash, game.crash_reason, final_move, state_old)
 
-            agent.memory.push(state_old, final_move, state_new, reward)
-            agent.optimize()
+            agent.memory.push(state_old, action, state_new, reward)
 
 
             record = get_record(game.score, record)
@@ -333,14 +342,15 @@ def run():
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
+        agent.optimize()
         # print(agent.epsilon)
         counter_games += 1
         print('Game', counter_games, '      Score:', game.score)
         score_plot.append(game.score)
         counter_plot.append(counter_games)
 
-        if counter_games % 20 == 0:
-            agent.target_net.load_state_dict(agent.policy_net.state_dict())
+        #if counter_games % 20 == 0:
+        agent.target_net.load_state_dict(agent.policy_net.state_dict())
     agent.policy_net.save_weights('weights.hdf5')
     plot_seaborn(counter_plot, score_plot)
 
