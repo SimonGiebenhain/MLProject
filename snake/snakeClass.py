@@ -289,7 +289,9 @@ def run():
     counter_plot =[]
     record = 0
     less_randomness = 0
-    while counter_games < 200:
+    old_record = 0
+
+    while counter_games < 1000:
         # Initialize classes
         game = Game(440, 440)
         player1 = game.player
@@ -310,7 +312,7 @@ def run():
             # agent.epsilon = 1/(2*sqrt(counter_games) + 1)
             # if counter_games > 150:
             #    agent.epsilon = 0
-            agent.epsilon = 200 - counter_games  # - less_randomness/2
+            agent.epsilon = 50 - counter_games  # - less_randomness/2
             # agent.epsilon = 0
             # get old state
             if not game.human:
@@ -371,10 +373,10 @@ def run():
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
-        #if counter_games > 50:
-        #    agent.replay_new_vectorized()
-        #else:
-        agent.replay_new()
+        if counter_games > 50:
+            agent.replay_new_vectorized()
+        else:
+            agent.replay_new()
 
         counter_games += 1
         print('Game', counter_games, '\t Score:', game.score)
@@ -383,9 +385,13 @@ def run():
             less_randomness += 10
         counter_plot.append(counter_games)
 
-        if counter_games % 10 == 0:
+        if counter_games % 20 == 0:
             agent.target_net.set_weights(agent.policy_net.get_weights())
-    agent.policy_net.save_weights('weights.hdf5')
+
+        if old_record < record:
+            old_record = record
+            agent.policy_net.save_weights('best_performing_weights.hdf5')
+    #agent.policy_net.save_weights('weights.hdf5')
     #boards = np.asarray([agent.memory_board])
     #train = boards[:45000,:,:,:]
     #np.save('x_train', train)

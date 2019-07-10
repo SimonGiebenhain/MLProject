@@ -32,9 +32,9 @@ class DQNAgent(object):
         self.move_count = 0
         self.policy_net = self.network()
         self.target_net = self.network()
-        self.target_net.set_weights(self.policy_net.get_weights())
-        #self.policy_net = self.network("weights.hdf5")
-        #self.target_net = self.network("weights.hdf5")
+        #self.target_net.set_weights(self.policy_net.get_weights())
+        self.policy_net = self.network("weights.hdf5")
+        self.target_net = self.network("weights.hdf5")
         self.epsilon = 0
         self.actual = []
         self.memory = []
@@ -560,9 +560,9 @@ class DQNAgent(object):
         x = Concatenate(axis=1)([num_feats, code_inp])
 
         #model.add(Dropout(0.15))
-        x = Dense(50, activation='relu')(x)
+        x = Dense(80, activation='relu')(x)
         #model.add(Dropout(0.1))
-        x = Dense(30, activation='relu')(x)
+        x = Dense(50, activation='relu')(x)
         #model.add(Dropout(0.05))
         output = Dense(3, activation='softmax')(x)
 
@@ -604,34 +604,40 @@ class DQNAgent(object):
            rng_state = random.getstate()
            state_minibatch = np.asarray(random.sample(self.memory_state, 1000))
            random.setstate(rng_state)
+           board_minibatch = np.asarray(random.sample(self.memory_board, 1000))
+           random.setstate(rng_state)
            action_minibatch = np.asarray(random.sample(self.memory_action, 1000))
            random.setstate(rng_state)
            reward_minibatch = np.asarray(random.sample(self.memory_reward, 1000))
            random.setstate(rng_state)
            next_state_minibatch = np.asarray(random.sample(self.memory_next_state, 1000))
+           next_board_minibatch = np.asarray(random.sample(self.memory_next_board, 1000))
+           random.setstate(rng_state)
            random.setstate(rng_state)
            done_minibatch = np.asarray(random.sample(self.memory_done, 1000))
        else:
            state_minibatch = np.asarray(self.memory_state)
+           board_minibatch = np.asarray(self.memory_board)
            action_minibatch = np.asarray(self.memory_action)
            reward_minibatch = np.asarray(self.memory_reward)
            next_state_minibatch = np.asarray(self.memory_next_state)
+           next_board_minibatch = np.asarray(self.memory_next_board)
            done_minibatch = np.asarray(self.memory_done)
 
        for i in range(10):
           target = reward_minibatch[i*100:(i+1)*100]
           target[np.invert(done_minibatch[i*100:(i+1)*100])] = target[np.invert(done_minibatch[i*100:(i+1)*100])] + \
-                self.gamma * np.amax(self.target_net.predict(next_state_minibatch[i*100:(i+1)*100,:]), 1)[np.invert(done_minibatch[i*100:(i+1)*100])]
-          target_f = self.policy_net.predict(state_minibatch[i*100:(i+1)*100,:])
+                self.gamma * np.amax(self.target_net.predict([ next_state_minibatch[i*100:(i+1)*100,:], next_board_minibatch[i*100:(i+1)*100,:] ]), 1)[np.invert(done_minibatch[i*100:(i+1)*100])]
+          target_f = self.policy_net.predict([ state_minibatch[i*100:(i+1)*100,:], board_minibatch[i*100:(i+1)*100,:] ])
           target_f[:,np.argmax(action_minibatch[i*100:(i+1)*100,:],1)] = target
-          self.policy_net.fit(state_minibatch[i*100:(i+1)*100,:], target_f, epochs=1, verbose=0)
+          self.policy_net.fit([ state_minibatch[i*100:(i+1)*100,:], board_minibatch[i*100:(i+1)*100,:] ], target_f, epochs=1, verbose=0)
 
 
 
 
     def replay_new(self):
-        if len(self.memory_done) > 1000:
-            minibatch = random.sample(self.memory, 1000)
+        if len(self.memory_done) > 512:
+            minibatch = random.sample(self.memory, 512)
         else:
             minibatch = self.memory
 
