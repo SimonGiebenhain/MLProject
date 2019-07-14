@@ -46,8 +46,11 @@ class Player(object):
         self.food_distance_old = 10  # make sure no reward for first move
         self.eaten = False
         self.image = pygame.image.load('img/snakeBody.png')
+        self.image_head = pygame.image.load('img/snakeHead.png')
         self.x_change = 20
         self.y_change = 0
+        self.consecutive_right_turns = 0
+        self.consecutive_left_turns = 0
 
     def update_position(self, x, y):
         if self.position[-1][0] != x or self.position[-1][1] != y:
@@ -94,15 +97,27 @@ class Player(object):
 
         eat(self, food, game)
 
+        if np.array_equal(move, [0,1,0]):
+            if self.consecutive_left_turns > 0:
+                self.consecutive_left_turns = 0
+            self.consecutive_right_turns += 1
+        elif np.array_equal(move, [0, 0, 1]):
+            if self.consecutive_right_turns > 0:
+                self.consecutive_right_turns = 0
+            self.consecutive_left_turns += 1
+
+
+
 
     def display_player(self, x, y, food, game):
         self.position[-1][0] = x
         self.position[-1][1] = y
 
         if game.crash == False:
-            for i in range(food):
-                x_temp, y_temp = self.position[len(self.position) - 1 - i]
+            for i in range(len(self.position)-1):
+                x_temp, y_temp = self.position[i]
                 game.gameDisplay.blit(self.image, (x_temp, y_temp))
+            game.gameDisplay.blit(self.image_head, (x, y))
 
             update_screen()
         else:
@@ -295,7 +310,7 @@ def run():
 
     eps_min = 0
     eps_max = 1
-    n_games = 400
+    n_games = 800
 
     while counter_games < n_games:
         # Initialize classes
@@ -402,7 +417,7 @@ def run():
 
         if old_record < record:
             old_record = record
-            agent.policy_net.save_weights('simple_weights.hdf5')
+            agent.policy_net.save_weights('vicinity10_weights.hdf5')
     #agent.policy_net.save_weights('weights.hdf5')
     #boards = np.asarray([agent.memory_board])
     #train = boards[:45000,:,:,:]
@@ -438,13 +453,16 @@ def run_mc():
         if display_option:
             display(player1, food1, game, record)
 
+        action_old = [1, 0, 0]
+        state_old = agent.get_state(game)
         steps = 0
         while not game.crash:
             steps += 1
-            state_old = agent.get_state(game)
-            final_move = agent.act(game, state_old)
+            state = agent.get_state(game)
+            final_move = agent.act(game, state, state_old, action_old)
             player1.do_move(final_move, player1.x, player1.y, game, food1)
-
+            state_old = state
+            action_old = final_move
 
             record = get_record(game.score, record)
             if display_option:

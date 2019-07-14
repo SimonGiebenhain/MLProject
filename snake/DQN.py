@@ -24,7 +24,7 @@ class DQNAgent(object):
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        self.state_length = 18
+        self.state_length = 20
         self.code_length = 90
         self.learning_rate = 0.0001
         self.did_turn = 0
@@ -203,6 +203,9 @@ class DQNAgent(object):
                 state[i]=1
             else:
                 state[i]=0
+
+        state.append(player.consecutive_right_turns)
+        state.append(player.consecutive_left_turns)
 
         #state.append(player.x/game.game_width)
         #state.append(player.y/game.game_height)
@@ -569,6 +572,11 @@ class DQNAgent(object):
             #self.reward = -0.01
             if steps > player.food * 1.2 + 15:
                 self.reward = - 0.5 / player.food
+            if player.consecutive_right_turns > 1:
+                self.reward -= 0.1 * player.consecutive_right_turns
+            elif player.consecutive_left_turns > 1:
+                self.reward -= 0.1 * player.consecutive_left_turns
+
 
         #elif self.last_move == 1:
         #    self.reward += -0.03
@@ -673,8 +681,8 @@ class DQNAgent(object):
 
 
     def replay_new(self):
-        if len(self.memory_done) > 64:
-            minibatch = random.sample(self.memory, 64)
+        if len(self.memory_done) > 128:
+            minibatch = random.sample(self.memory, 128)
         else:
             minibatch = self.memory
 
