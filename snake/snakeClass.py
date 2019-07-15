@@ -1,8 +1,8 @@
 import pygame
 from pygame.locals import *
 
-from random import randint
-from simple_MC_DQN import DQNAgent
+from random import randint, choice
+from DQN_conv2 import DQNAgent
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -12,7 +12,7 @@ from keras.utils import to_categorical
 
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = True
+display_option = False
 speed = 50
 pygame.font.init()
 
@@ -294,6 +294,11 @@ def initialize_game(player, game, food, agent):
     agent.remember(state_init1, action, reward1, state_init2, game.crash)
     agent.replay_new()
 
+def initialize_game_conv(player, game, food, agent):
+    state_init1, board_1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    action = [1, 0, 0]
+    player.do_move(action, player.x, player.y, game, food)
+    return board_1
 
 def plot_seaborn(array_counter, array_score):
     sns.set(color_codes=True)
@@ -432,6 +437,144 @@ def run():
 
     plot_seaborn(counter_plot, score_plot)
 
+
+def run_conv():
+    pygame.init()
+    agent = DQNAgent()
+    counter_games = 0
+    score_plot = []
+    counter_plot =[]
+    record = 0
+    less_randomness = 0
+    old_record = 0
+
+    eps_min = 0.2
+    eps_max = 1
+    n_games = 100000
+
+    while counter_games < n_games:
+        # Initialize classes
+        game = Game(440, 440)
+        player1 = game.player
+        food1 = game.food
+
+        # Perform first move
+        board_old = initialize_game_conv(player1, game, food1, agent)
+        if display_option:
+            display(player1, food1, game, record)
+
+
+        steps = 0
+        while not game.crash:
+            steps += 1
+            if steps > 400:
+                game.crash = True
+            #if step > 200 and counter_games > 80 and player1.food < 15:
+            #    game.crash = True
+
+            # agent.epsilon is set to give randomness to actions
+            # agent.epsilon = 1/(2*sqrt(counter_games) + 1)
+            # if counter_games > 150:
+            #    agent.epsilon = 0
+            agent.epsilon = max(eps_min, eps_max - (eps_max - eps_min) * 1.5*counter_games / n_games)
+
+            # agent.epsilon = 0
+            # get old state
+            if not game.human:
+                state, board = agent.get_state(game)
+                board_inp = np.stack([board_old, board], 2)
+                # perform random actions based on agent.epsilon, or choose the action
+                if np.random.rand() < agent.epsilon:
+                    # if np.random.uniform() <= agent.epsilon:
+                    if np.random.rand() < 1 - agent.epsilon:
+                        final_move = to_categorical(randint(0, 2), num_classes=3)
+                    else:
+                        possible_action = []
+                        if state[0] == 0:
+                            possible_action.append([1, 0, 0])
+                        if state[1] == 0:
+                            possible_action.append([0, 1, 0])
+                        if state[2] == 0:
+                            possible_action.append([0, 0, 1])
+                        if len(possible_action) > 0:
+                            final_move = choice(possible_action)
+                        else:
+                            final_move = choice([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+                else:
+                    # predict action based on the old state
+                    prediction = agent.policy_net.predict([np.reshape(state, [1, agent.state_length]), np.expand_dims(board_inp,0)])
+                    final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
+                    #final_move = correct_move(game, player1, final_move)
+            else:
+                final_move = [1, 0, 0]
+
+            events = pygame.event.get()
+            if game.human:
+                final_move = human_move(game, player1, events)
+
+            if np.array_equal(final_move, [1, 0, 0]):
+                agent.did_turn = 0
+            else:
+                agent.did_turn = 1
+                if np.array_equal(final_move, agent.last_move):
+                    agent.move_count += 1
+                else:
+                    agent.last_move = final_move
+                    agent.move_count = 1
+
+            # perform new move and get new state
+            player1.do_move(final_move, player1.x, player1.y, game, food1)
+            state_new, board_new = agent.get_state(game)
+
+            if player1.eaten:
+                steps = 0
+            # set treward for the new state
+            reward = agent.set_reward(game, player1, game.crash, game.crash_reason, final_move, state, steps)
+
+            # train short memory base on the new action and state
+            #agent.target_net.set_weights(agent.policy_net.get_weights())
+
+            if not game.crash and not player1.eaten:
+                if (state[0] == 0 and state[1] == 0 and state[2] == 0) and np.random.uniform() < max(0.2, 1-agent.epsilon):
+                    agent.remember(state, board_inp, final_move, reward, state_new, np.stack([board, board_new], 2), game.crash)
+            else:
+                agent.remember(state, board_inp, final_move, reward, state_new, np.stack([board, board_new], 2), game.crash)
+
+            board_old = board
+
+            record = get_record(game.score, record)
+            if display_option and counter_games % 50 == 0 and counter_games > 100:
+                display(player1, food1, game, record)
+                pygame.time.wait(speed)
+
+        #if counter_games > 50:
+        agent.replay_new_vectorized()
+        #agent.replay_new_vectorized()
+
+        #else:
+        #agent.replay_new()
+
+        counter_games += 1
+        print('Game', counter_games, '\t Score:', game.score, '\t epslion', agent.epsilon)
+        score_plot.append(game.score)
+        if game.score > 3:
+            less_randomness += 10
+        counter_plot.append(counter_games)
+
+        #if counter_games % 20 == 0:
+        agent.target_net.set_weights(agent.policy_net.get_weights())
+
+        if old_record < record:
+            old_record = record
+            agent.policy_net.save_weights('conv_model_weights.hdf5')
+    #agent.policy_net.save_weights('weights.hdf5')
+    #boards = np.asarray([agent.memory_board])
+    #train = boards[:45000,:,:,:]
+    #np.save('x_train', train)
+    #test = boards[45000:,:,:,:]
+    #np.save('x_test', test)
+
+    plot_seaborn(counter_plot, score_plot)
 
 def run_mc():
     pygame.init()
@@ -631,5 +774,5 @@ def run_agent():
 
 
 
-run_mc()
+run_conv()
 
