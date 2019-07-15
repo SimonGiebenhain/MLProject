@@ -190,7 +190,7 @@ class DQNAgent(object):
         self.short_memory = np.array([])
         self.agent_target = 1
         self.agent_predict = 0
-        self.state_length = 18
+        self.state_length = 25
         #self.code_length = 90
         self.learning_rate = 0.0005
         self.did_turn = 0
@@ -349,200 +349,208 @@ class DQNAgent(object):
 
     # TODO: work with body position of next state instead
     def get_state(self, game):
-        player = game.player
-        food = game.food
+       player = game.player
+       food = game.food
 
-        state = self.get_immediate_danger(game)
+       state = self.get_immediate_danger(game)
 
-        state.append(player.x_change == -20)  # move left
-        state.append(player.x_change == 20)  # move right
-        state.append(player.y_change == -20)  # move up
-        state.append(player.y_change == 20)  # move down
-        state.append(food.x_food < player.x)  # food left
-        state.append(food.x_food > player.x)  # food right
-        state.append(food.y_food < player.y)  # food up
-        state.append(food.y_food > player.y)  # food down
+       state.append(player.x_change == -20)  # move left
+       state.append(player.x_change == 20)  # move right
+       state.append(player.y_change == -20)  # move up
+       state.append(player.y_change == 20)  # move down
+       state.append(food.x_food < player.x)  # food left
+       state.append(food.x_food > player.x)  # food right
+       state.append(food.y_food < player.y)  # food up
+       state.append(food.y_food > player.y)  # food down
 
-        for i in range(len(state)):
-            if state[i]:
-                state[i] = 1
-            else:
-                state[i] = 0
+       for i in range(len(state)):
+           if state[i]:
+               state[i] = 1
+           else:
+               state[i] = 0
 
-        # state.append(player.x/game.game_width)
-        # state.append(player.y/game.game_height)
-        # state.append((food.x_food - player.x) / game.game_width),  # food x difference
-        # state.append((food.y_food - player.y) / game.game_height)  # food y difference
+       # state.append(player.consecutive_right_turns)
+       # state.append(player.consecutive_left_turns)
+       # state.append(player.consecutive_straight_before_turn)
+       # state.append(game.player.food/game.game_width)
 
-        # state.append(self.last_move[1]*self.move_count/10)
-        # state.append(self.last_move[2]*self.move_count/10)
+       # state.append(player.x/game.game_width)
+       # state.append(player.y/game.game_height)
+       # state.append((food.x_food - player.x) / game.game_width),  # food x difference
+       # state.append((food.y_food - player.y) / game.game_height)  # food y difference
 
-        # TODO:
-        # add length of snake to state
-        # state.append(player.food/game.game_width)
+       # state.append(self.last_move[1]*self.move_count/10)
+       # state.append(self.last_move[2]*self.move_count/10)
 
-        # calculate distances to next wall in each direction as additional information
-        #        if player.x_change == -20:
-        #            d_wall_straight = player.position[-1][0] / game.game_width
-        #            d_wall_backwards = (game.game_width - player.position[-1][0]) / game.game_width
-        #            d_wall_right = player.position[-1][1] / game.game_height
-        #            d_wall_left = (game.game_height - player.position[-1][1]) / game.game_height
-        #
-        #        elif player.x_change == 20:
-        #            d_wall_straight = (game.game_width - player.position[-1][0]) / game.game_width
-        #            d_wall_backwards = player.position[-1][0] / game.game_width
-        #            d_wall_right = (game.game_height - player.position[-1][1]) / game.game_height
-        #            d_wall_left = player.position[-1][1] / game.game_height
-        #
-        #        elif player.y_change == -20:
-        #            d_wall_straight = player.position[-1][1] / game.game_height
-        #            d_wall_backwards = (game.game_height - player.position[-1][1]) / game.game_height
-        #            d_wall_right = (game.game_width - player.position[-1][0]) / game.game_width
-        #            d_wall_left = player.position[-1][0] / game.game_width
-        #
-        #        else:
-        #            d_wall_straight = (game.game_height - player.position[-1][1]) / game.game_height
-        #            d_wall_backwards = player.position[-1][1] / game.game_height
-        #            d_wall_right = player.position[-1][0] / game.game_width
-        #            d_wall_left = (game.game_width - player.position[-1][0]) / game.game_width
-        #
-        #
-        #        # calculate distances to own body, if none than use distance to next wall
-        #        if player.x_change == -20:
-        #            x = player.position[-1][0]
-        #            y = player.position[-1][1]
-        #
-        #            # straight
-        #            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
-        #            if candidates:
-        #                closest = max( candidates )
-        #            else:
-        #                closest = 0
-        #            d_body_straight = (x - closest) / game.game_width
-        #
-        #            # right
-        #            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
-        #            if candidates:
-        #                closest = max(candidates)
-        #            else:
-        #                closest = 0
-        #            d_body_right = (y - closest) / game.game_height
-        #
-        #            # left
-        #            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-        #            if candidates:
-        #                closest = min(candidates)
-        #            else:
-        #                closest = game.game_height - 20
-        #            d_body_left = (closest - y) / game.game_height
-        #
-        #
-        #        elif player.x_change == 20:
-        #            x = player.position[-1][0]
-        #            y = player.position[-1][1]
-        #
-        #            # straight
-        #            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
-        #            if candidates:
-        #                closest = min(candidates)
-        #            else:
-        #                closest = game.game_width - 20
-        #            d_body_straight = (closest - x) / game.game_width
-        #
-        #            # right
-        #            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-        #            if candidates:
-        #                closest = min(candidates)
-        #            else:
-        #                closest = game.game_height - 20
-        #            d_body_right = (closest - y) / game.game_height
-        #
-        #            # left
-        #            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
-        #            if candidates:
-        #                closest = max(candidates)
-        #            else:
-        #                closest = 0
-        #            d_body_left = (y - closest) / game.game_height
-        #
-        #
-        #        elif player.y_change == -20:
-        #            x = player.position[-1][0]
-        #            y = player.position[-1][1]
-        #
-        #            # straight
-        #            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
-        #            if candidates:
-        #                closest = max(candidates)
-        #            else:
-        #                closest = 0
-        #            d_body_straight = (y - closest) / game.game_height
-        #
-        #            # right
-        #            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
-        #            if candidates:
-        #                closest = min(candidates)
-        #            else:
-        #                closest = game.game_width - 20
-        #            d_body_right = (closest - x) / game.game_width
-        #
-        #            # left
-        #            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
-        #            if candidates:
-        #                closest = max(candidates)
-        #            else:
-        #                closest = 0
-        #            d_body_left = (x - closest) / game.game_width
-        #
-        #
-        #            #player.y_change == 20:
-        #        else:
-        #            x = player.position[-1][0]
-        #            y = player.position[-1][1]
-        #
-        #            # straight
-        #            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-        #            if candidates:
-        #                closest = min(candidates)
-        #            else:
-        #                closest = game.game_height - 20
-        #            d_body_straight = (closest - y) / game.game_height
-        #
-        #            # right
-        #            candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
-        #            if candidates:
-        #                closest = max(candidates)
-        #            else:
-        #                closest = 0
-        #            d_body_right = (x - closest) / game.game_width
-        #
-        #            # left
-        #            candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
-        #            if candidates:
-        #                closest = min(candidates)
-        #            else:
-        #                closest = game.game_width - 20
-        #            d_body_left = (closest - x) / game.game_width
-        #
-        #        state.append(d_body_straight)
-        #        state.append(d_body_left)
-        #        state.append(d_body_right)
-        #        state.append(d_wall_right)
-        #        state.append(d_wall_straight)
-        #        state.append(d_wall_backwards)
-        #        state.append(d_wall_left)
+       # TODO:
+       # add length of snake to state
+       # state.append(player.food/game.game_width)
 
-        # TODO: use more rays
-        # TODO: Try out distance to free space
-        # TODO: lönge ja oder nein oder als kurz mittel und lange oder sowas?
+       # calculate distances to next wall in each direction as additional information
+       if player.x_change == -20:
+           d_wall_straight = player.position[-1][0] / game.game_width
+           d_wall_backwards = (game.game_width - player.position[-1][0]) / game.game_width
+           d_wall_right = player.position[-1][1] / game.game_height
+           d_wall_left = (game.game_height - player.position[-1][1]) / game.game_height
+       #
+       elif player.x_change == 20:
+           d_wall_straight = (game.game_width - player.position[-1][0]) / game.game_width
+           d_wall_backwards = player.position[-1][0] / game.game_width
+           d_wall_right = (game.game_height - player.position[-1][1]) / game.game_height
+           d_wall_left = player.position[-1][1] / game.game_height
+       #
+       elif player.y_change == -20:
+           d_wall_straight = player.position[-1][1] / game.game_height
+           d_wall_backwards = (game.game_height - player.position[-1][1]) / game.game_height
+           d_wall_right = (game.game_width - player.position[-1][0]) / game.game_width
+           d_wall_left = player.position[-1][0] / game.game_width
+       #
+       else:
+           d_wall_straight = (game.game_height - player.position[-1][1]) / game.game_height
+           d_wall_backwards = player.position[-1][1] / game.game_height
+           d_wall_right = player.position[-1][0] / game.game_width
+           d_wall_left = (game.game_width - player.position[-1][0]) / game.game_width
+       #
+       #
+       # calculate distances to own body, if none than use distance to next wall
+       if player.x_change == -20:
+           x = player.position[-1][0]
+           y = player.position[-1][1]
+           #
+           # straight
+           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
+           if candidates:
+               closest = max(candidates)
+           else:
+               closest = 0
+           d_body_straight = (x - closest) / game.game_width
+           #
+           # right
+           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
+           if candidates:
+               closest = max(candidates)
+           else:
+               closest = 0
+           d_body_right = (y - closest) / game.game_height
+           #
+           # left
+           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+           if candidates:
+               closest = min(candidates)
+           else:
+               closest = game.game_height - 20
+           d_body_left = (closest - y) / game.game_height
+       #
+       #
+       elif player.x_change == 20:
+           x = player.position[-1][0]
+           y = player.position[-1][1]
+           #
+           # straight
+           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
+           if candidates:
+               closest = min(candidates)
+           else:
+               closest = game.game_width - 20
+           d_body_straight = (closest - x) / game.game_width
+           #
+           # right
+           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+           if candidates:
+               closest = min(candidates)
+           else:
+               closest = game.game_height - 20
+           d_body_right = (closest - y) / game.game_height
+           #
+           # left
+           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
+           if candidates:
+               closest = max(candidates)
+           else:
+               closest = 0
+           d_body_left = (y - closest) / game.game_height
+       #
+       #
+       elif player.y_change == -20:
+           x = player.position[-1][0]
+           y = player.position[-1][1]
+           #
+           # straight
+           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] < y]
+           if candidates:
+               closest = max(candidates)
+           else:
+               closest = 0
+           d_body_straight = (y - closest) / game.game_height
+           #
+           # right
+           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] > x]
+           if candidates:
+               closest = min(candidates)
+           else:
+               closest = game.game_width - 20
+           d_body_right = (closest - x) / game.game_width
+           #
+           # left
+           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
+           if candidates:
+               closest = max(candidates)
+           else:
+               closest = 0
+           d_body_left = (x - closest) / game.game_width
+       #
+       #
+       # player.y_change == 20:
+       else:
+           x = player.position[-1][0]
+           y = player.position[-1][1]
+           #
+           # straight
+           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+           if candidates:
+               closest = min(candidates)
+           else:
+               closest = game.game_height - 20
+           d_body_straight = (closest - y) / game.game_height
+           #
+           # right
+           candidates = [pos[0] for pos in player.position[:-2] if pos[1] == y and pos[0] < x]
+           if candidates:
+               closest = max(candidates)
+           else:
+               closest = 0
+           d_body_right = (x - closest) / game.game_width
+           #
+           # left
+           candidates = [pos[1] for pos in player.position[:-2] if pos[0] == x and pos[1] > y]
+           if candidates:
+               closest = min(candidates)
+           else:
+               closest = game.game_width - 20
+           d_body_left = (closest - x) / game.game_width
+       #
+       state.append(d_body_straight)
+       state.append(d_body_left)
+       state.append(d_body_right)
+       # state.append(min([d_wall_right, d_body_right]))
+       # state.append(min([d_wall_straight, d_body_straight]))
+       state.append(d_wall_backwards)
+       # state.append(min([d_wall_left, d_body_left]))
+       state.append(d_wall_straight)
+       state.append(d_wall_right)
+       state.append(d_wall_left)
 
-        # board = self.get_board(game, player)
-        # code = self.encoder.predict((np.expand_dims(board,0)))
-        # board_lin = np.reshape(board, -1)
+       # TODO: use more rays
+       # TODO: Try out distance to free space
+       # TODO: lönge ja oder nein oder als kurz mittel und lange oder sowas?
 
-        # return np.expand_dims(np.asarray(state), 0)
-        # return np.concatenate([ np.asarray(state), board_lin])
-        return np.asarray(state)  # , code
+       # board = self.get_board(game, player)
+       # code = self.encoder.predict((np.expand_dims(board,0)))
+       # board_lin = np.reshape(board, -1)
+
+       # return np.expand_dims(np.asarray(state), 0)
+       # return np.concatenate([ np.asarray(state), board_lin])
+       return np.asarray(state)  # , code
 
     # check whether snake is going straight into slot of width 1
     def straight_sackgasse(self, game, player):
@@ -761,12 +769,12 @@ class DQNAgent(object):
     def network(self, weights=None):
 
         num_inp = Input(shape=[self.state_length])
-        x = Dense(30, activation='relu')(num_inp)
+        x = Dense(100, activation='relu')(num_inp)
 
         #model.add(Dropout(0.15))
-        x = Dense(30, activation='relu')(x)
+        x = Dense(120, activation='relu')(x)
         #model.add(Dropout(0.1))
-        x = Dense(20, activation='relu')(x)
+        x = Dense(50, activation='relu')(x)
         #model.add(Dropout(0.05))
         output = Dense(3)(x)
 
@@ -820,8 +828,8 @@ class DQNAgent(object):
     def act(self, game, state, state_old, action_old):
 
         # TODO never go in sackgassse
-        num_simulations = 5
-        eps_simulation = 0.05
+        num_simulations = 1
+        eps_simulation = 0
         max_steps = 50
 
         danger_straight = state[0]

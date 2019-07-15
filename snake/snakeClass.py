@@ -2,7 +2,7 @@ import pygame
 from pygame.locals import *
 
 from random import randint
-from DQN import DQNAgent
+from simple_MC_DQN import DQNAgent
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -51,6 +51,7 @@ class Player(object):
         self.y_change = 0
         self.consecutive_right_turns = 0
         self.consecutive_left_turns = 0
+        self.consecutive_straight_before_turn = 0
 
     def update_position(self, x, y):
         if self.position[-1][0] != x or self.position[-1][1] != y:
@@ -100,11 +101,15 @@ class Player(object):
         if np.array_equal(move, [0,1,0]):
             if self.consecutive_left_turns > 0:
                 self.consecutive_left_turns = 0
+                self.consecutive_straight_before_turn = 0
             self.consecutive_right_turns += 1
         elif np.array_equal(move, [0, 0, 1]):
             if self.consecutive_right_turns > 0:
                 self.consecutive_right_turns = 0
+                self.consecutive_straight_before_turn = 0
             self.consecutive_left_turns += 1
+        else: # straight
+            self.consecutive_straight_before_turn += 1
 
 
 
@@ -310,7 +315,7 @@ def run():
 
     eps_min = 0
     eps_max = 1
-    n_games = 800
+    n_games = 500
 
     while counter_games < n_games:
         # Initialize classes
@@ -394,16 +399,16 @@ def run():
                 agent.remember(state_old, final_move, reward, state_new, game.crash)
 
             record = get_record(game.score, record)
-            if display_option and counter_games % 10 == 0:
+            if display_option and counter_games % 50 == 0 and counter_games > 100:
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
         #if counter_games > 50:
-        #agent.replay_new_vectorized()
+        agent.replay_new_vectorized()
         #agent.replay_new_vectorized()
 
         #else:
-        agent.replay_new()
+        #agent.replay_new()
 
         counter_games += 1
         print('Game', counter_games, '\t Score:', game.score, '\t epslion', agent.epsilon)
@@ -440,7 +445,7 @@ def run_mc():
 
     eps_min = 0
     eps_max = 1
-    n_games = 200
+    n_games = 5000
 
     while counter_games < n_games:
         # Initialize classes
@@ -626,5 +631,5 @@ def run_agent():
 
 
 
-run()
+run_mc()
 
