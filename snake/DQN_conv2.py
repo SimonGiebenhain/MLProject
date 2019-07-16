@@ -38,15 +38,14 @@ class DQNAgent(object):
         self.move_count = 0
 
         self.policy_net = self.network()
-        self.target_net = self.network()
-        self.target_net.set_weights(self.policy_net.get_weights())
+        #self.target_net = self.network()
+        #self.target_net.set_weights(self.policy_net.get_weights())
         #self.policy_net = self.network("weights.hdf5")
         #self.target_net = self.network("weights.hdf5")
-        self.memory_size = 100000
+        self.memory_size = 50000
 
         self.epsilon = 0
         self.actual = []
-        self.memory = []
         self.memory_position = 0
         self.memory_state = []
         self.memory_reward = []
@@ -92,88 +91,7 @@ class DQNAgent(object):
         elif player.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
             danger_left = 1
 
-        body = body[1:]  # all dangers to come lie 2 steps into the future
-
-        danger_right_straight = 0
-        if player.x_change == 20 and (
-                [x + 20, y + 20] in body or y + 20 >= game.game_height - 20 or x + 20 >= game.game_height - 20):
-            danger_right_straight = 1
-        elif player.x_change == -20 and ([x - 20, y - 20] in body or y - 20 < 20 or x - 20 < 20):
-            danger_right_straight = 1
-        elif player.y_change == 20 and ([x - 20, y + 20] in body or x - 20 < 20 or y + 20 >= game.game_width - 20):
-            danger_right_straight = 1
-        elif player.y_change == -20 and (
-                [x + 20, y - 20] in body or x + 20 >= game.game_height - 20 or y - 20 < 20):
-            danger_right_straight = 1
-
-        danger_left_straight = 0
-        if player.x_change == 20 and (
-                [x + 20, y - 20] in body or y - 20 < 20 or x + 20 >= game.game_height - 20):
-            danger_left_straight = 1
-        elif player.x_change == -20 and ([x - 20, y + 20] in body or y + 20 >= game.game_width - 20 or x - 20 < 20):
-            danger_left_straight = 1
-        elif player.y_change == 20 and (
-                [x + 20, y + 20] in body or x + 20 >= game.game_width - 20 or y + 20 >= game.game_width - 20):
-            danger_left_straight = 1
-        elif player.y_change == -20 and ([x - 20, y - 20] in body or x - 20 < 20 or y - 20 < 20):
-            danger_left_straight = 1
-
-        danger_straight_straight = 0
-        if player.x_change == 20 and ([x + 40, y] in body or x + 40 >= game.game_width - 20):
-            danger_straight_straight = 1
-        elif player.x_change == -20 and ([x - 40, y] in body or x - 40 < 20):
-            danger_straight_straight = 1
-        elif player.y_change == 20 and ([x, y + 40] in body or y + 40 >= game.game_height - 20):
-            danger_straight_straight = 1
-        elif player.y_change == -20 and ([x, y - 40] in body or y - 40 < 20):
-            danger_straight_straight = 1
-
-        danger_right_right = 0
-        if player.x_change == 20 and ([x, y + 40] in body or y + 40 >= game.game_height - 20):
-            danger_right_right = 1
-        elif player.x_change == -20 and ([x, y - 40] in body or y - 40 < 20):
-            danger_right_right = 1
-        elif player.y_change == 20 and ([x - 40, y] in body or x - 40 < 20):
-            danger_right_right = 1
-        elif player.y_change == -20 and ([x + 40, y] in body or x + 40 >= game.game_width - 20):
-            danger_right_right = 1
-
-        danger_left_left = 0
-        if player.x_change == 20 and ([x, y - 40] in body or y - 40 < 20):
-            danger_left_left = 1
-        elif player.x_change == -20 and ([x, y + 40] in body or y + 40 >= game.game_height - 20):
-            danger_left_left = 1
-        elif player.y_change == 20 and ([x + 40, y] in body or x + 40 >= game.game_width - 20):
-            danger_left_left = 1
-        elif player.y_change == -20 and ([x - 40, y] in body or x - 40 < 20):
-            danger_left_left = 1
-
-        danger_right_back = 0
-        if player.x_change == 20 and ([x - 20, y + 20] in body or y + 20 >= game.game_height - 20 or x - 20 < 20):
-            danger_right_back = 1
-        elif player.x_change == -20 and ([x + 20, y - 20] in body or y - 20 < 20 or x + 20 >= game.game_width - 20):
-            danger_right_back = 1
-        elif player.y_change == 20 and ([x - 20, y - 20] in body or x - 20 < 20 or y - 20 < 20):
-            danger_right_back = 1
-        elif player.y_change == -20 and (
-                [x + 20, y + 20] in body or x + 20 >= game.game_width - 20 or y + 20 >= game.game_height - 20):
-            danger_right_back = 1
-
-        danger_left_back = 0
-        if player.x_change == 20 and ([x - 20, y - 20] in body or y - 20 < 20 or x - 20 < 20):
-            danger_left_back = 1
-        elif player.x_change == -20 and (
-                [x + 20, y + 20] in body or y + 20 >= game.game_height - 20 or x + 20 >= game.game_width - 20):
-            danger_left_back = 1
-        elif player.y_change == 20 and ([x + 20, y - 20] in body or x + 20 >= game.game_width - 20 or y - 20 < 20):
-            danger_left_back = 1
-        elif player.y_change == -20 and (
-                [x - 20, y + 20] in body or x - 20 < 20 or y + 20 >= game.game_height - 20):
-            danger_left_back = 1
-
-        immediate_danger = [danger_straight, danger_right, danger_left, danger_right_straight, danger_left_straight,
-                            danger_straight_straight, danger_right_right, danger_left_left, danger_right_back,
-                            danger_left_back]
+        immediate_danger = [danger_straight, danger_right, danger_left]
         return immediate_danger
 
     def get_board(self, game, player):
@@ -182,7 +100,7 @@ class DQNAgent(object):
             x = floor(player.x / 20) - 1
             y = floor(player.y / 20) - 1
             board[x, y] = 2
-            for pos in player.position[:-2]:
+            for pos in player.position[:-1]:
                 body_x = floor(pos[0] / 20) - 1
                 bod_y = floor(pos[1] / 20) - 1
                 if body_x != x or bod_y != y:
@@ -198,7 +116,6 @@ class DQNAgent(object):
             food = game.food
 
             state = self.get_immediate_danger(game)
-            state = state[:3]
 
             state.append(player.x_change == -20)  # move left
             state.append(player.x_change == 20)  # move right
@@ -399,7 +316,6 @@ class DQNAgent(object):
             return np.asarray(state), board
 
 
-
     def set_reward(self, game, player, crash, crash_reason, curr_move, state_old, steps):
 
         self.reward = 0
@@ -424,21 +340,17 @@ class DQNAgent(object):
             self.memory_done.append(done)
             self.memory_board.append(board)
             self.memory_next_board.append(next_board)
-
-            self.memory.append((state, board, action, reward, next_state, next_board, done))
         else:
             self.memory_state[self.memory_position] = state
             self.memory_action[self.memory_position] = action
             self.memory_reward[self.memory_position] = reward
             self.memory_next_state[self.memory_position] = next_state
             self.memory_done[self.memory_position] = done
-            self.memory_board.append(board)
-            self.memory_next_board.append(next_board)
-
-
-            self.memory[self.memory_position] = (state, board, action, reward, next_state, next_board, done)
+            self.memory_board[self.memory_position] = board
+            self.memory_next_board[self.memory_position] = next_board
 
             self.memory_position = (self.memory_position + 1) % self.memory_size
+
 
 
     def network(self, weights=None):
@@ -496,17 +408,8 @@ class DQNAgent(object):
            next_board_minibatch = np.squeeze(np.asarray(self.memory_next_board))
            done_minibatch = np.asarray(self.memory_done)
 
-       #for i in range(10):
-       #   target = reward_minibatch[i*100:(i+1)*100]
-       #   target[np.invert(done_minibatch[i*100:(i+1)*100])] = target[np.invert(done_minibatch[i*100:(i+1)*100])] + \
-       #         self.gamma * np.amax(self.target_net.predict([ next_state_minibatch[i*100:(i+1)*100,:], next_board_minibatch[i*100:(i+1)*100,:] ]), 1)[np.invert(done_minibatch[i*100:(i+1)*100])]
-       #   target_f = self.policy_net.predict([ state_minibatch[i*100:(i+1)*100,:], board_minibatch[i*100:(i+1)*100,:] ])
-       #   target_f[:,np.argmax(action_minibatch[i*100:(i+1)*100,:],1)] = target
-       #   self.policy_net.fit([ state_minibatch[i*100:(i+1)*100,:], board_minibatch[i*100:(i+1)*100,:] ], target_f, epochs=1, verbose=0)
-
-       #for i in range(10):
        target = reward_minibatch
-       target[np.invert(done_minibatch)] = target[np.invert(done_minibatch)] + self.gamma * np.amax(self.target_net.predict([next_state_minibatch, next_board_minibatch]), 1)[np.invert(done_minibatch)]
+       target[np.invert(done_minibatch)] = target[np.invert(done_minibatch)] + self.gamma * np.amax(self.policy_net.predict([next_state_minibatch, next_board_minibatch]), 1)[np.invert(done_minibatch)]
        target_f = self.policy_net.predict([state_minibatch, board_minibatch])
        target_f[:, np.argmax(action_minibatch, 1)] = target
        self.policy_net.fit([state_minibatch, board_minibatch],target_f, epochs=1, verbose=0)
