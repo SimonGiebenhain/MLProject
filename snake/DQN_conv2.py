@@ -1,12 +1,12 @@
 # TODO: manchmal geht schlange durch essen durch
 
 
-from keras.optimizers import Adam
+from tensorflow.python.keras.optimizers import Adam, RMSprop
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Reshape, Lambda, Flatten
-from keras.layers import Input, Conv2D, BatchNormalization, Concatenate
+from tensorflow.python.keras.layers.core import Dense, Dropout, Reshape, Lambda, Flatten
+from tensorflow.python.keras.layers import Input, Conv2D, BatchNormalization, Concatenate
 
-from keras.models import Model
+from tensorflow.python.keras.models import Model
 
 import tensorflow as tf
 
@@ -31,18 +31,18 @@ class DQNAgent(object):
         self.dataframe = pd.DataFrame()
         self.agent_target = 1
         self.agent_predict = 0
-        self.state_length = 11
-        self.learning_rate = 0.0001
+        self.state_length = 12
+        self.learning_rate = 0.00005
         self.did_turn = 0
         self.last_move = [1, 0, 0]
         self.move_count = 0
 
         self.policy_net = self.network()
-        #self.target_net = self.network()
-        #self.target_net.set_weights(self.policy_net.get_weights())
+        self.target_net = self.network()
+        self.target_net.set_weights(self.policy_net.get_weights())
         #self.policy_net = self.network("weights.hdf5")
         #self.target_net = self.network("weights.hdf5")
-        self.memory_size = 50000
+        self.memory_size = 100000
 
         self.epsilon = 0
         self.actual = []
@@ -94,8 +94,51 @@ class DQNAgent(object):
         immediate_danger = [danger_straight, danger_right, danger_left]
         return immediate_danger
 
+    def get_immediate_danger4(self, game):
+        player = game.player
+        x = player.x
+        y = player.y
+        body = player.position[1:]  # compute danger for next position of body
+
+        danger_up = 0
+        if player.x_change in [-20, 20] and ([x, y - 20] in body or y - 20 < 20):
+            danger_up = 1
+        elif player.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+            danger_up = 1
+        elif player.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+            danger_up = 1
+
+        danger_right = 0
+        if player.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_height - 20):
+            danger_right = 1
+        elif player.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+            danger_right = 1
+        elif player.y_change in [-20, 20] and ([x + 20, y] in body or x + 20 >= game.game_height - 20):
+            danger_right = 1
+
+        danger_down = 0
+        if player.x_change in [-20, 20] and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+            danger_down = 1
+        elif player.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+            danger_down = 1
+        elif player.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+            danger_down = 1
+
+        danger_left = 0
+        if player.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_height - 20):
+            danger_left = 1
+        elif player.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+            danger_left = 1
+        elif player.y_change in [-20, 20] and ([x - 20, y] in body or x - 20 < 20):
+            danger_left = 1
+
+        immediate_danger = [danger_up, danger_right, danger_down, danger_left]
+        return immediate_danger
+
     def get_board(self, game, player):
-        board = np.zeros([20, 20])
+        width = int((game.game_width - 40) / 20)
+        height = int((game.game_height - 40) / 20)
+        board = 3*np.ones([height, width])
         if not game.crash:
             x = floor(player.x / 20) - 1
             y = floor(player.y / 20) - 1
@@ -104,18 +147,44 @@ class DQNAgent(object):
                 body_x = floor(pos[0] / 20) - 1
                 bod_y = floor(pos[1] / 20) - 1
                 if body_x != x or bod_y != y:
-                    board[body_x, bod_y] = 3
+                    board[body_x, bod_y] = 1
             x = floor(game.food.x_food / 20) - 1
             y = floor(game.food.y_food / 20) - 1
-            board[x,y] = 1
+            board[x,y] = 4
         return board
 
         # TODO: work with body position of next state instead
+
+    def get_board_one_hot(self, game, player):
+        width = int((game.game_width - 40) / 20)
+        height = int((game.game_height - 40) / 20)
+        board = np.zeros([height, width, 4])
+        board[:, :, 0] = 1
+        if not game.crash:
+            x = floor(player.x / 20) - 1
+            y = floor(player.y / 20) - 1
+            board[x, y, 1] = 1
+            board[x, y, 0] = 0
+            for pos in player.position[:-1]:
+                body_x = floor(pos[0] / 20) - 1
+                body_y = floor(pos[1] / 20) - 1
+                if body_x != x or body_y != y:
+                    board[body_x, body_y, 2] = 1
+                    board[body_x, body_y, 0] = 0
+            x = floor(game.food.x_food / 20) - 1
+            y = floor(game.food.y_food / 20) - 1
+            board[x, y, 3] = 1
+            board[x, y, 0] = 0
+        return board
+
+        # TODO: work with body position of next state instead
+
+
     def get_state(self, game):
             player = game.player
             food = game.food
 
-            state = self.get_immediate_danger(game)
+            state = self.get_immediate_danger4(game)
 
             state.append(player.x_change == -20)  # move left
             state.append(player.x_change == 20)  # move right
@@ -307,7 +376,7 @@ class DQNAgent(object):
             # TODO: Try out distance to free space
             # TODO: lönge ja oder nein oder als kurz mittel und lange oder sowas?
 
-            board = self.get_board(game, player)
+            board = self.get_board_one_hot(game, player)
             # code = self.encoder.predict((np.expand_dims(board,0)))
             # board_lin = np.reshape(board, -1)
 
@@ -315,21 +384,19 @@ class DQNAgent(object):
             # return np.concatenate([ np.asarray(state), board_lin])
             return np.asarray(state), board
 
-
     def set_reward(self, game, player, crash, crash_reason, curr_move, state_old, steps):
 
         self.reward = 0
         if crash:
-            self.reward = -10
+            self.reward = -1
         elif player.eaten:
-            self.reward = 10 #5 + player.food/10
+            self.reward = 1 #5 + player.food/10
         else:
             # self.reward = -0.01
-            if steps > player.food * 1.2 + 15:
-                self.reward = - 0.5 / player.food
+            if steps > (player.food-3) * 1.2 + 15:
+                self.reward = - 0.01 / player.food
 
         return self.reward
-
 
     def remember(self, state, board, action, reward, next_state, next_board, done):
         if len(self.memory_done) < self.memory_size:
@@ -351,31 +418,31 @@ class DQNAgent(object):
 
             self.memory_position = (self.memory_position + 1) % self.memory_size
 
-
-
     def network(self, weights=None):
 
         num_inp = Input(shape=[self.state_length])
-        num_feats = Dense(120, activation='relu')(num_inp)
+        num_feats = Dense(70, activation='relu')(num_inp)
+        num_feats = Dense(40, activation='relu')(num_feats)
 
-        board_inp = Input(shape=[20,20,2])
+        board_inp = Input(shape=[8,8,8])
 
-        board_feats = BatchNormalization()(Conv2D(8, kernel_size=(5,5), strides=(2,2), activation='relu')(board_inp))
+        board_feats = Dropout(rate=0.05)(BatchNormalization()(Conv2D(20, kernel_size=(3,3), strides=(2,2), activation='relu', padding='same')(board_inp)))
 
-        board_feats = BatchNormalization()(Conv2D(16, kernel_size=(3,3), strides=(2,2), activation='relu')(board_feats))
+        board_feats = Dropout(rate=0.05)(BatchNormalization()(Conv2D(25, kernel_size=(3,3), strides=(1,1), activation='relu', padding='same')(board_feats)))
 
-        board_feats = Flatten()(Conv2D(32, kernel_size=(3,3), strides=(1,1), activation='relu')(board_feats))
+        board_feats = (Conv2D(30, kernel_size=(3,3), strides=(1,1), activation='relu', padding='same')(board_feats))
 
-        board_feats = Dense(350, activation='relu')(board_feats)
-        board_feats = Dense(100, activation='relu')(board_feats)
-        feats = Concatenate()([num_feats, board_feats])
-        feats = Dense(150, activation='relu')(feats)
-        feats = Dense(50, activation='relu')(feats)
-        output = Dense(3)(feats)
+        board_feats = Flatten()(board_feats)
+        board_feats = Dropout(rate=0.05)(Dense(150, activation='relu')(board_feats))
+        #board_feats = Dense(50, activation='relu')(board_feats)
+        feats = Dropout(rate=0.05)(Concatenate()([num_feats, board_feats]))
+        feats = Dropout(rate=0.02)(Dense(150, activation='relu')(feats))
+        feats = Dense(60, activation='relu')(feats)
+        output = Dense(4)(feats)
 
         model = Model([num_inp, board_inp], output)
         model.summary()
-        opt = Adam(self.learning_rate)
+        opt = Adam(lr=self.learning_rate, )
         model.compile(loss='mse', optimizer=opt)
 
         if weights:
@@ -383,7 +450,7 @@ class DQNAgent(object):
         return model
 
     def replay_new_vectorized(self):
-       batch_size = 128
+       batch_size = 64
        if len(self.memory_done) > batch_size:
            rng_state = random.getstate()
            state_minibatch = np.squeeze(np.asarray(random.sample(self.memory_state, batch_size)))
@@ -399,19 +466,11 @@ class DQNAgent(object):
            next_board_minibatch = np.squeeze(np.asarray(random.sample(self.memory_next_board, batch_size)))
            random.setstate(rng_state)
            done_minibatch = np.asarray(random.sample(self.memory_done, batch_size))
-       else:
-           state_minibatch = np.squeeze(np.asarray(self.memory_state))
-           board_minibatch = np.squeeze(np.asarray(self.memory_board))
-           action_minibatch = np.asarray(self.memory_action)
-           reward_minibatch = np.asarray(self.memory_reward)
-           next_state_minibatch = np.squeeze(np.asarray(self.memory_next_state))
-           next_board_minibatch = np.squeeze(np.asarray(self.memory_next_board))
-           done_minibatch = np.asarray(self.memory_done)
 
-       target = reward_minibatch
-       target[np.invert(done_minibatch)] = target[np.invert(done_minibatch)] + self.gamma * np.amax(self.policy_net.predict([next_state_minibatch, next_board_minibatch]), 1)[np.invert(done_minibatch)]
-       target_f = self.policy_net.predict([state_minibatch, board_minibatch])
-       target_f[:, np.argmax(action_minibatch, 1)] = target
-       self.policy_net.fit([state_minibatch, board_minibatch],target_f, epochs=1, verbose=0)
+           target = reward_minibatch
+           target[np.invert(done_minibatch)] = target[np.invert(done_minibatch)] + self.gamma * np.amax(self.target_net.predict([next_state_minibatch, next_board_minibatch]), 1)[np.invert(done_minibatch)]
+           target_f = self.policy_net.predict([state_minibatch, board_minibatch])
+           target_f[:, action_minibatch] = target
+           self.policy_net.fit([state_minibatch, board_minibatch],target_f, epochs=1, verbose=0)
 
 
