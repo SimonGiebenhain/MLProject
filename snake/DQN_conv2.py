@@ -8,6 +8,8 @@ from tensorflow.python.keras.layers import Input, Conv2D, BatchNormalization, Co
 
 from tensorflow.python.keras.models import Model
 
+import tensorflow.python.keras.backend as K
+
 import tensorflow as tf
 
 import random
@@ -22,6 +24,9 @@ import os
 def clipped_error(x):
     return tf.where(tf.abs(x) < 1.0, 0.5 * tf.square(x), tf.abs(x) - 0.5)
 
+def huber_loss(yTrue,yPred):
+    return K.mean(clipped_error(K.abs(yTrue - yPred)))
+
 
 class DQNAgent(object):
 
@@ -32,7 +37,7 @@ class DQNAgent(object):
         self.agent_target = 1
         self.agent_predict = 0
         self.state_length = 12
-        self.learning_rate = 0.00005
+        self.learning_rate = 0.0001
         self.did_turn = 0
         self.last_move = [1, 0, 0]
         self.move_count = 0
@@ -156,9 +161,9 @@ class DQNAgent(object):
         # TODO: work with body position of next state instead
 
     def get_board_one_hot(self, game, player):
-        width = int((game.game_width - 40) / 20)
-        height = int((game.game_height - 40) / 20)
-        board = np.zeros([height, width, 4])
+        width = int((game.game_width) / 20)
+        height = int((game.game_height) / 20)
+        board = np.zeros([height, width, 5])
         board[:, :, 0] = 1
         if not game.crash:
             x = floor(player.x / 20) - 1
@@ -175,6 +180,14 @@ class DQNAgent(object):
             y = floor(game.food.y_food / 20) - 1
             board[x, y, 3] = 1
             board[x, y, 0] = 0
+        board[0,:,4] = 1
+        board[:,0,4] = 1
+        board[width - 1,:,4] = 1
+        board[:, height - 1, 4] = 1
+        board[0, :, 0] = 0
+        board[:, 0, 0] = 0
+        board[width - 1, :, 0] = 0
+        board[:, height - 1, 0] = 0
         return board
 
         # TODO: work with body position of next state instead
@@ -424,13 +437,13 @@ class DQNAgent(object):
         num_feats = Dense(70, activation='relu')(num_inp)
         num_feats = Dense(40, activation='relu')(num_feats)
 
-        board_inp = Input(shape=[8,8,8])
+        board_inp = Input(shape=[10,10,10])
 
-        board_feats = Dropout(rate=0.05)(BatchNormalization()(Conv2D(20, kernel_size=(3,3), strides=(2,2), activation='relu', padding='same')(board_inp)))
+        board_feats = Dropout(rate=0.05)(BatchNormalization()(Conv2D(30, kernel_size=(3,3), strides=(1,1), activation='relu')(board_inp)))
 
-        board_feats = Dropout(rate=0.05)(BatchNormalization()(Conv2D(25, kernel_size=(3,3), strides=(1,1), activation='relu', padding='same')(board_feats)))
+        board_feats = Dropout(rate=0.05)(BatchNormalization()(Conv2D(30, kernel_size=(3,3), strides=(1,1), activation='relu')(board_feats)))
 
-        board_feats = (Conv2D(30, kernel_size=(3,3), strides=(1,1), activation='relu', padding='same')(board_feats))
+        board_feats = (Conv2D(30, kernel_size=(3,3), strides=(1,1), activation='relu')(board_feats))
 
         board_feats = Flatten()(board_feats)
         board_feats = Dropout(rate=0.05)(Dense(150, activation='relu')(board_feats))

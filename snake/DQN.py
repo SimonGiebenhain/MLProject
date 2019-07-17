@@ -168,7 +168,7 @@ class DQNAgent(object):
             y = floor(player.y / 20) - 1
             board[x,y,3] = 1
             board[x,y,0] = 0
-            for pos in player.position[:-2]:
+            for pos in player.position[:-1]:
                 x = floor(pos[0] / 20) - 1
                 y = floor(pos[1] / 20) - 1
                 board[x, y, 0] = 0

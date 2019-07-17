@@ -386,7 +386,7 @@ def run_conv():
 
         #todo set weights direkt nach training?
         # TODO kleinere learning rate
-        # gradient clipping und huber loss
+        # gradient clipping
         # architektur
         # (die 4 letzten bilder) oder 3
         # yuri nachmachen

@@ -9,6 +9,7 @@ import seaborn as sns
 import numpy as np
 from math import sqrt
 from keras.utils import to_categorical
+import gc
 
 
 # Set options to activate or deactivate the game view, and its speed
@@ -450,7 +451,7 @@ def run_conv():
 
     eps_min = 0.2
     eps_max = 1
-    n_games = 100000
+    n_games = 30000
 
     while counter_games < n_games:
         # Initialize classes
@@ -486,7 +487,7 @@ def run_conv():
                 # perform random actions based on agent.epsilon, or choose the action
                 if np.random.rand() < agent.epsilon:
                     # if np.random.uniform() <= agent.epsilon:
-                    if np.random.rand() < 1 - agent.epsilon:
+                    if np.random.rand() < max(0.05, agent.epsilon/2):
                         final_move = to_categorical(randint(0, 2), num_classes=3)
                     else:
                         possible_action = []
@@ -547,12 +548,7 @@ def run_conv():
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
-        #if counter_games > 50:
         agent.replay_new_vectorized()
-        #agent.replay_new_vectorized()
-
-        #else:
-        #agent.replay_new()
 
         counter_games += 1
         print('Game', counter_games, '\t Score:', game.score, '\t epslion', agent.epsilon)
@@ -562,11 +558,14 @@ def run_conv():
         counter_plot.append(counter_games)
 
         #if counter_games % 20 == 0:
-        agent.target_net.set_weights(agent.policy_net.get_weights())
+        #agent.target_net.set_weights(agent.policy_net.get_weights())
 
         if old_record < record:
             old_record = record
             agent.policy_net.save_weights('conv_model_weights.hdf5')
+
+        #gc.collect()
+
     #agent.policy_net.save_weights('weights.hdf5')
     #boards = np.asarray([agent.memory_board])
     #train = boards[:45000,:,:,:]
