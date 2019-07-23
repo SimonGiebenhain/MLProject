@@ -2,7 +2,8 @@ import pygame
 from pygame.locals import *
 
 from random import randint, choice
-from RandomAgent import RandomAgent
+from RandomAgent import BetterRandomAgent
+from util_functions import get_state, get_board
 from PerformanceLogger import PerformanceLogger
 import numpy as np
 import matplotlib.pyplot as plt
@@ -285,17 +286,17 @@ def update_screen():
 
 
 def initialize_game(player, game, food, agent):
-    state_init1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    state_init1 = get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food)
-    state_init2 = agent.get_state(game)
+    state_init2 = get_state(game)
     if agent.trainable:
         reward1 = agent.set_reward(game, player, game.crash, game.crash_reason, action, state_init1, 0)
         agent.remember(state_init1, action, reward1, state_init2, game.crash)
         agent.replay_new()
 
 def initialize_game_conv(player, game, food, agent):
-    state_init1, board_1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    state_init1, board_1 = get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food)
     return board_1
@@ -310,7 +311,7 @@ def plot_seaborn(array_counter, array_score):
 
 def run():
     pygame.init()
-    agent = RandomAgent()
+    agent = BetterRandomAgent()
     counter_games = 0
     score_plot = []
     counter_plot =[]
@@ -320,7 +321,7 @@ def run():
 
     eps_min = 0
     eps_max = 1
-    n_games = 50
+    n_games = 100
     logger = PerformanceLogger(n_games, agent.type)
 
 
@@ -356,7 +357,7 @@ def run():
             # agent.epsilon = 0
             # get old state
             if not game.human:
-                state_old = agent.get_state(game)
+                state_old = get_state(game)
 
                 # perform random actions based on agent.epsilon, or choose the action
                 if np.random.rand() < agent.epsilon:
@@ -389,7 +390,7 @@ def run():
             player1.do_move(final_move, player1.x, player1.y, game, food1)
             if not game.crash:
                 logger.log_move(final_move)
-            state_new = agent.get_state(game)
+            state_new = get_state(game)
 
             if player1.eaten:
                 steps = 0
@@ -490,7 +491,7 @@ def run_conv():
             # agent.epsilon = 0
             # get old state
             if not game.human:
-                state, board = agent.get_state(game)
+                state, board = get_state(game)
                 board_inp = np.stack([board_old, board], 2)
                 # perform random actions based on agent.epsilon, or choose the action
                 if np.random.rand() < agent.epsilon:
@@ -533,7 +534,7 @@ def run_conv():
 
             # perform new move and get new state
             player1.do_move(final_move, player1.x, player1.y, game, food1)
-            state_new, board_new = agent.get_state(game)
+            state_new, board_new = get_state(game)
 
             if player1.eaten:
                 steps = 0
@@ -609,11 +610,11 @@ def run_mc():
             display(player1, food1, game, record)
 
         action_old = [1, 0, 0]
-        state_old = agent.get_state(game)
+        state_old = get_state(game)
         steps = 0
         while not game.crash:
             steps += 1
-            state = agent.get_state(game)
+            state = get_state(game)
             final_move = agent.act(game, state, state_old, action_old)
             player1.do_move(final_move, player1.x, player1.y, game, food1)
             state_old = state

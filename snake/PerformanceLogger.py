@@ -1,5 +1,6 @@
 import numpy as np
 import datetime
+from matplotlib import pyplot as plt
 
 class PerformanceLogger(object):
 
@@ -40,10 +41,10 @@ class PerformanceLogger(object):
         log_file = open(file_name, 'w')
         log_file.write('Agent: \t\t {}\n'.format(self.agent_type))
         log_file.write('Number of Games: \t\t {}\n'.format(self.num_games))
-        log_file.write('Average Score: \t\t {}\n'.format(sum(self.score_history)/self.num_games))
-        log_file.write('Average Moves Survived: \t\t {}\n'.format(sum(self.moves_survived_history)/self.num_games))
-        log_file.write('Average Moves Per Apple: \t\t {}\n'.format(sum(self.score_history)/sum(self.moves_survived_history)))
-        log_file.write('Average Reason of Death: \t\t {}\n'.format(sum(self.reason_of_death_history)/self.num_games))
+        log_file.write('Avg: Score: \t\t {}\n'.format(sum(self.score_history)/self.num_games))
+        log_file.write('Avg. Duration: \t\t {}\n'.format(sum(self.moves_survived_history)/self.num_games))
+        log_file.write('Avg. Moves Per Apple: \t\t {}\n'.format(sum(self.moves_survived_history)/sum(self.score_history)))
+        log_file.write('Avg. Reason of Death: \t\t {}\n'.format(sum(self.reason_of_death_history)/self.num_games))
         log_file.write('Best Score: \t\t {}\n'.format(max(self.score_history)))
         log_file.write('Worst Score: \t\t {}\n'.format(min(self.score_history)))
         log_file.write('Percentage Straight: \t\t {}\n'.format(self.num_moves_straight/self.num_games))
@@ -52,3 +53,14 @@ class PerformanceLogger(object):
         log_file.close()
 
         #TODO plot graphs
+        plt.figure()
+        plt.scatter(range(self.num_games), self.score_history)
+        scatter_plot_name = file_name + '_scatter'
+        plt.show()
+        #plt.savefig(scatter_plot_name)
+
+        #TODO plot distribution over scores
+        plt.figure()
+        bins = range(1, max(self.score_history)+2)
+        plt.hist(self.score_history, bins=bins)
+        plt.show()
