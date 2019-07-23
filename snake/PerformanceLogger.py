@@ -37,7 +37,7 @@ class PerformanceLogger(object):
     def complete_log(self):
         now = datetime.datetime.now()
         timestamp = now.strftime("%Y-%m-%d-%H:%M:%S")
-        file_name = './log/{type}_{time}'.format(type = self.agent_type, time=timestamp)
+        file_name = './log/{type}_{games}_{time}'.format(type = self.agent_type, games=self.num_games, time=timestamp)
         log_file = open(file_name, 'w')
         log_file.write('Agent: \t\t {}\n'.format(self.agent_type))
         log_file.write('Number of Games: \t\t {}\n'.format(self.num_games))
@@ -55,12 +55,21 @@ class PerformanceLogger(object):
         #TODO plot graphs
         plt.figure()
         plt.scatter(range(self.num_games), self.score_history)
+        plt.xlabel('Game')
+        plt.ylabel('Score')
         scatter_plot_name = file_name + '_scatter'
+        plt.savefig(scatter_plot_name)
         plt.show()
-        #plt.savefig(scatter_plot_name)
 
         #TODO plot distribution over scores
         plt.figure()
         bins = range(1, max(self.score_history)+2)
         plt.hist(self.score_history, bins=bins)
+        plt.title('Score distribution')
+        hist_name = file_name + '_hist'
+        plt.savefig(hist_name)
         plt.show()
+
+
+        #TODO SAVE IMPORTANT INFORMATION FOR PLOTS WITH MULTIPLE AGENTS
+        np.save(file_name + '.npy', np.array(self.score_history))

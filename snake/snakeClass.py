@@ -321,7 +321,7 @@ def run():
 
     eps_min = 0
     eps_max = 1
-    n_games = 100
+    n_games = 1000
     logger = PerformanceLogger(n_games, agent.type)
 
 
