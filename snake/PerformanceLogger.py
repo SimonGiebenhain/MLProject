@@ -26,9 +26,10 @@ class PerformanceLogger(object):
 
 
     def log_death(self, state, score):
+        danger = state['danger']
         self.score_history.append(score)
         self.moves_survived_history.append(self.moves_survived)
-        if state[0] == 1 and state[1] == 1 and state[2] == 1:
+        if danger[0] == 1 and danger[1] == 1 and danger[2] == 1:
             self.reason_of_death_history.append(1)
         else:
             self.reason_of_death_history.append(0)

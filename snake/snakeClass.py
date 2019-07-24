@@ -2,8 +2,8 @@ import pygame
 from pygame.locals import *
 
 from random import randint, choice
-from RandomAgent import BetterRandomAgent
-from util_functions import get_state, get_board
+from Agents import SimplePathAgent
+from util_functions import  get_board
 from PerformanceLogger import PerformanceLogger
 import numpy as np
 import matplotlib.pyplot as plt
@@ -15,8 +15,8 @@ import gc
 
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = False
-speed = 150
+display_option = True
+speed = 50
 pygame.font.init()
 
 
@@ -43,7 +43,7 @@ class Player(object):
         y = 0.5 * game.game_height
         self.x = x - x % 20
         self.y = y - y % 20
-        self.position = [[self.x, self.y]]
+        self.position = [(self.x, self.y)]
         self.food = 1
         self.food_distance = 0
         self.food_distance_old = 10  # make sure no reward for first move
@@ -60,9 +60,8 @@ class Player(object):
         if self.position[-1][0] != x or self.position[-1][1] != y:
             if self.food > 1:
                 for i in range(0, self.food - 1):
-                    self.position[i][0], self.position[i][1] = self.position[i + 1]
-            self.position[-1][0] = x
-            self.position[-1][1] = y
+                    self.position[i] = self.position[i + 1]
+            self.position[-1] = (x,y)
 
     def do_move(self, move, x, y, game, food):
         move_array = [self.x_change, self.y_change]
@@ -94,7 +93,7 @@ class Player(object):
             self.update_position(self.x, self.y)
 
         if self.eaten:
-            self.position.append([self.x, self.y])
+            self.position.append((self.x, self.y))
             self.eaten = False
             self.food = self.food + 1
 
@@ -117,8 +116,7 @@ class Player(object):
 
 
     def display_player(self, x, y, food, game):
-        self.position[-1][0] = x
-        self.position[-1][1] = y
+        self.position[-1] = (x, y)
 
         for i in range(len(self.position)-1):
             x_temp, y_temp = self.position[i]
@@ -234,7 +232,7 @@ class Food(object):
         self.x_food = x_rand - x_rand % 20
         y_rand = randint(20, game.game_height - 40)
         self.y_food = y_rand - y_rand % 20
-        if [self.x_food, self.y_food] not in player.position and (self.x_food != player.x and self.y_food != player.y):
+        if (self.x_food, self.y_food) not in player.position and (self.x_food != player.x and self.y_food != player.y):
             return self.x_food, self.y_food
         else:
             return self.food_coord(game,player)
@@ -286,17 +284,17 @@ def update_screen():
 
 
 def initialize_game(player, game, food, agent):
-    state_init1 = get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    state_init1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food)
-    state_init2 = get_state(game)
+    state_init2 = agent.get_state(game)
     if agent.trainable:
         reward1 = agent.set_reward(game, player, game.crash, game.crash_reason, action, state_init1, 0)
         agent.remember(state_init1, action, reward1, state_init2, game.crash)
         agent.replay_new()
 
 def initialize_game_conv(player, game, food, agent):
-    state_init1, board_1 = get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    state_init1, board_1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food)
     return board_1
@@ -311,7 +309,7 @@ def plot_seaborn(array_counter, array_score):
 
 def run():
     pygame.init()
-    agent = BetterRandomAgent()
+    agent = SimplePathAgent()
     counter_games = 0
     score_plot = []
     counter_plot =[]
@@ -357,7 +355,7 @@ def run():
             # agent.epsilon = 0
             # get old state
             if not game.human:
-                state_old = get_state(game)
+                state_old = agent.get_state(game)
 
                 # perform random actions based on agent.epsilon, or choose the action
                 if np.random.rand() < agent.epsilon:
@@ -390,7 +388,7 @@ def run():
             player1.do_move(final_move, player1.x, player1.y, game, food1)
             if not game.crash:
                 logger.log_move(final_move)
-            state_new = get_state(game)
+            state_new = agent.get_state(game)
 
             if player1.eaten:
                 steps = 0
@@ -413,6 +411,7 @@ def run():
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
+        agent.reset()
         logger.log_death(state_old, game.score)
         #if counter_games > 50:
         if agent.trainable:
@@ -491,7 +490,7 @@ def run_conv():
             # agent.epsilon = 0
             # get old state
             if not game.human:
-                state, board = get_state(game)
+                state, board = agent.get_state(game)
                 board_inp = np.stack([board_old, board], 2)
                 # perform random actions based on agent.epsilon, or choose the action
                 if np.random.rand() < agent.epsilon:
@@ -534,7 +533,7 @@ def run_conv():
 
             # perform new move and get new state
             player1.do_move(final_move, player1.x, player1.y, game, food1)
-            state_new, board_new = get_state(game)
+            state_new, board_new = agent.get_state(game)
 
             if player1.eaten:
                 steps = 0
@@ -610,11 +609,11 @@ def run_mc():
             display(player1, food1, game, record)
 
         action_old = [1, 0, 0]
-        state_old = get_state(game)
+        state_old = agent.get_state(game)
         steps = 0
         while not game.crash:
             steps += 1
-            state = get_state(game)
+            state = agent.get_state(game)
             final_move = agent.act(game, state, state_old, action_old)
             player1.do_move(final_move, player1.x, player1.y, game, food1)
             state_old = state
