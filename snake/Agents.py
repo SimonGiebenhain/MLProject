@@ -4,7 +4,7 @@
 import numpy as np
 import pandas as pd
 from math import floor
-from random import choice
+from random import choice, sample
 from copy import deepcopy
 import networkx as nx
 from util_functions import get_immediate_danger
@@ -154,7 +154,26 @@ class SimplePathAgent(object):
                 print('hi')
             if not G.has_node(food):
                 print('hi')
-            self.path = nx.shortest_path(G, head, food)
+            try:
+                self.path = nx.shortest_path(G, head, food)
+            # If there is no path, the agent is trapped in a loop
+            except:
+                danger = state['danger']
+                if danger[0] == 1 and danger[1] == 1and danger[2] == 1:
+                    return [1, 0, 0]
+                if not G.has_node(head):
+                    print('hi')
+                connected_component = nx.descendants(G, head)
+                if len(connected_component) < 2:
+                    return [1, 0, 0]
+                target = sample(connected_component, 1)[0]
+                if not G.has_node(head):
+                    print('hi')
+                if not G.has_node(target):
+                    print('hi')
+                self.path = nx.shortest_path(G, head, target)
+                #self.path = max((path for path in nx.all_simple_paths(G, head, target)),
+                #                     key=lambda path: len(path))
             self.path_idx = 0
 
         pos = self.path[self.path_idx]

@@ -15,7 +15,7 @@ import gc
 
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = True
+display_option = False
 speed = 50
 pygame.font.init()
 
@@ -61,7 +61,7 @@ class Player(object):
             if self.food > 1:
                 for i in range(0, self.food - 1):
                     self.position[i] = self.position[i + 1]
-            self.position[-1] = (x,y)
+            self.position[-1] = (x, y)
 
     def do_move(self, move, x, y, game, food):
         move_array = [self.x_change, self.y_change]
@@ -86,7 +86,7 @@ class Player(object):
         if self.x < 20 or self.x > game.game_width - 40 or self.y < 20 or self.y > game.game_height - 40:
             game.crash = True
             game.crash_reason = 0
-        elif [self.x, self.y] in self.position[1:-1]:
+        elif (self.x, self.y) in self.position[1:-1]:
             game.crash = True
             game.crash_reason = 10
         else:
