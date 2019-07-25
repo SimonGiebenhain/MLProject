@@ -16,7 +16,7 @@ import gc
 
 # Set options to activate or deactivate the game view, and its speed
 display_option = False
-speed = 20
+speed = 10
 pygame.font.init()
 
 

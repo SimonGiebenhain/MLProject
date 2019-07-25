@@ -10,33 +10,33 @@ def get_immediate_danger(game, big_neighbourhood=False):
     body = deepcopy(player.position[1:]) # compute danger for next position of body
 
     danger_straight = 0
-    if player.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+    if player.x_change == 20 and ((x + 20, y) in body or x + 20 >= game.game_width - 20):
         danger_straight = 1
-    elif player.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+    elif player.x_change == -20 and ((x - 20, y) in body or x - 20 < 20):
         danger_straight = 1
-    elif player.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+    elif player.y_change == 20 and ((x, y + 20) in body or y + 20 >= game.game_height - 20):
         danger_straight = 1
-    elif player.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+    elif player.y_change == -20 and ((x, y - 20) in body or y - 20 < 20):
         danger_straight = 1
 
     danger_right = 0
-    if player.x_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+    if player.x_change == 20 and ((x, y + 20) in body or y + 20 >= game.game_height - 20):
         danger_right = 1
-    elif player.x_change == -20 and ([x, y - 20] in body or y - 20 < 20):
+    elif player.x_change == -20 and ((x, y - 20) in body or y - 20 < 20):
         danger_right = 1
-    elif player.y_change == 20 and ([x - 20, y] in body or x - 20 < 20):
+    elif player.y_change == 20 and ((x - 20, y) in body or x - 20 < 20):
         danger_right = 1
-    elif player.y_change == -20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+    elif player.y_change == -20 and ((x + 20, y) in body or x + 20 >= game.game_width - 20):
         danger_right = 1
 
     danger_left = 0
-    if player.x_change == 20 and ([x, y - 20] in body or y - 20 < 20):
+    if player.x_change == 20 and ((x, y - 20) in body or y - 20 < 20):
         danger_left = 1
-    elif player.x_change == -20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
+    elif player.x_change == -20 and ((x, y + 20) in body or y + 20 >= game.game_height - 20):
         danger_left = 1
-    elif player.y_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
+    elif player.y_change == 20 and ((x + 20, y) in body or x + 20 >= game.game_width - 20):
         danger_left = 1
-    elif player.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
+    elif player.y_change == -20 and ((x - 20, y) in body or x - 20 < 20):
         danger_left = 1
 
     if big_neighbourhood:
@@ -44,74 +44,74 @@ def get_immediate_danger(game, big_neighbourhood=False):
         body = body[1:] # all dangers to come lie 2 steps into the future
 
         danger_right_straight = 0
-        if player.x_change == 20 and ([x + 20, y + 20] in body or y + 20 >= game.game_height - 20  or x + 20 >= game.game_height - 20):
+        if player.x_change == 20 and ((x + 20, y + 20) in body or y + 20 >= game.game_height - 20  or x + 20 >= game.game_height - 20):
             danger_right_straight = 1
-        elif player.x_change == -20 and ([x - 20, y - 20] in body or y - 20 < 20 or x - 20 < 20):
+        elif player.x_change == -20 and ((x - 20, y - 20) in body or y - 20 < 20 or x - 20 < 20):
             danger_right_straight = 1
-        elif player.y_change == 20 and ([x - 20, y + 20] in body or x - 20 < 20 or y + 20 >= game.game_width - 20):
+        elif player.y_change == 20 and ((x - 20, y + 20) in body or x - 20 < 20 or y + 20 >= game.game_width - 20):
             danger_right_straight = 1
-        elif player.y_change == -20 and ([x + 20, y - 20] in body or x + 20 >= game.game_height - 20 or y - 20 < 20):
+        elif player.y_change == -20 and ((x + 20, y - 20) in body or x + 20 >= game.game_height - 20 or y - 20 < 20):
             danger_right_straight = 1
 
         danger_left_straight = 0
         if player.x_change == 20 and (
                 [x + 20, y - 20] in body or y - 20 < 20 or x + 20 >= game.game_height - 20):
             danger_left_straight = 1
-        elif player.x_change == -20 and ([x - 20, y + 20] in body or y + 20 >= game.game_width - 20 or x - 20 < 20):
+        elif player.x_change == -20 and ((x - 20, y + 20) in body or y + 20 >= game.game_width - 20 or x - 20 < 20):
             danger_left_straight = 1
-        elif player.y_change == 20 and ([x + 20, y + 20] in body or x + 20 >= game.game_width - 20 or y + 20 >= game.game_width - 20):
+        elif player.y_change == 20 and ((x + 20, y + 20) in body or x + 20 >= game.game_width - 20 or y + 20 >= game.game_width - 20):
             danger_left_straight = 1
-        elif player.y_change == -20 and ([x - 20, y - 20] in body or x - 20 < 20 or y - 20 < 20):
+        elif player.y_change == -20 and ((x - 20, y - 20) in body or x - 20 < 20 or y - 20 < 20):
             danger_left_straight = 1
 
         danger_straight_straight = 0
-        if player.x_change == 20 and ([x + 40, y] in body or x + 40 >= game.game_width - 20):
+        if player.x_change == 20 and ((x + 40, y) in body or x + 40 >= game.game_width - 20):
             danger_straight_straight = 1
-        elif player.x_change == -20 and ([x - 40, y] in body or x - 40 < 20):
+        elif player.x_change == -20 and ((x - 40, y) in body or x - 40 < 20):
             danger_straight_straight = 1
-        elif player.y_change == 20 and ([x, y + 40] in body or y + 40 >= game.game_height - 20):
+        elif player.y_change == 20 and ((x, y + 40) in body or y + 40 >= game.game_height - 20):
             danger_straight_straight = 1
-        elif player.y_change == -20 and ([x, y - 40] in body or y - 40 < 20):
+        elif player.y_change == -20 and ((x, y - 40) in body or y - 40 < 20):
             danger_straight_straight = 1
 
         danger_right_right = 0
-        if player.x_change == 20 and ([x, y + 40] in body or y + 40 >= game.game_height - 20):
+        if player.x_change == 20 and ((x, y + 40) in body or y + 40 >= game.game_height - 20):
             danger_right_right = 1
-        elif player.x_change == -20 and ([x, y - 40] in body or y - 40 < 20):
+        elif player.x_change == -20 and ((x, y - 40) in body or y - 40 < 20):
             danger_right_right = 1
-        elif player.y_change == 20 and ([x - 40, y] in body or x - 40 < 20):
+        elif player.y_change == 20 and ((x - 40, y) in body or x - 40 < 20):
             danger_right_right = 1
-        elif player.y_change == -20 and ([x + 40, y] in body or x + 40 >= game.game_width - 20):
+        elif player.y_change == -20 and ((x + 40, y) in body or x + 40 >= game.game_width - 20):
             danger_right_right = 1
 
         danger_left_left = 0
-        if player.x_change == 20 and ([x, y - 40] in body or y - 40 < 20):
+        if player.x_change == 20 and ((x, y - 40) in body or y - 40 < 20):
             danger_left_left = 1
-        elif player.x_change == -20 and ([x, y + 40] in body or y + 40 >= game.game_height - 20):
+        elif player.x_change == -20 and ((x, y + 40) in body or y + 40 >= game.game_height - 20):
             danger_left_left = 1
-        elif player.y_change == 20 and ([x + 40, y] in body or x + 40 >= game.game_width - 20):
+        elif player.y_change == 20 and ((x + 40, y) in body or x + 40 >= game.game_width - 20):
             danger_left_left = 1
-        elif player.y_change == -20 and ([x - 40, y] in body or x - 40 < 20):
+        elif player.y_change == -20 and ((x - 40, y) in body or x - 40 < 20):
             danger_left_left = 1
 
         danger_right_back = 0
-        if player.x_change == 20 and ([x - 20, y + 20] in body or y + 20 >= game.game_height - 20 or x - 20 < 20):
+        if player.x_change == 20 and ((x - 20, y + 20) in body or y + 20 >= game.game_height - 20 or x - 20 < 20):
             danger_right_back = 1
-        elif player.x_change == -20 and ([x + 20, y - 20] in body or y - 20 < 20 or x + 20 >= game.game_width - 20):
+        elif player.x_change == -20 and ((x + 20, y - 20) in body or y - 20 < 20 or x + 20 >= game.game_width - 20):
             danger_right_back = 1
-        elif player.y_change == 20 and ([x - 20, y - 20] in body or x - 20 < 20 or y - 20 < 20):
+        elif player.y_change == 20 and ((x - 20, y - 20) in body or x - 20 < 20 or y - 20 < 20):
             danger_right_back = 1
-        elif player.y_change == -20 and ([x + 20, y + 20] in body or x + 20 >= game.game_width - 20 or y + 20 >= game.game_height - 20):
+        elif player.y_change == -20 and ((x + 20, y + 20) in body or x + 20 >= game.game_width - 20 or y + 20 >= game.game_height - 20):
             danger_right_back = 1
 
         danger_left_back = 0
-        if player.x_change == 20 and ([x - 20, y - 20] in body or y - 20 < 20 or x - 20 < 20):
+        if player.x_change == 20 and ((x - 20, y - 20) in body or y - 20 < 20 or x - 20 < 20):
             danger_left_back = 1
-        elif player.x_change == -20 and ([x + 20, y + 20] in body or y + 20 >= game.game_height - 20  or x + 20 >= game.game_width - 20):
+        elif player.x_change == -20 and ((x + 20, y + 20) in body or y + 20 >= game.game_height - 20  or x + 20 >= game.game_width - 20):
             danger_left_back = 1
-        elif player.y_change == 20 and ([x + 20, y - 20] in body or x + 20 >= game.game_width - 20 or y - 20 < 20):
+        elif player.y_change == 20 and ((x + 20, y - 20) in body or x + 20 >= game.game_width - 20 or y - 20 < 20):
             danger_left_back = 1
-        elif player.y_change == -20 and ([x - 20, y + 20] in body or x - 20 < 20 or y + 20 >= game.game_height - 20):
+        elif player.y_change == -20 and ((x - 20, y + 20) in body or x - 20 < 20 or y + 20 >= game.game_height - 20):
             danger_left_back = 1
 
         immediate_danger = [danger_straight, danger_right, danger_left, danger_right_straight, danger_left_straight, danger_straight_straight, danger_right_right, danger_left_left, danger_right_back, danger_left_back]
@@ -353,9 +353,9 @@ def get_state_for_random_agent(game):
 
     for i in range(len(danger)):
         if danger[i]:
-            danger[i]=1
+            danger[i] = 1
         else:
-            danger[i]=0
+            danger[i] = 0
 
     return {'danger': np.asarray(danger)}
 
