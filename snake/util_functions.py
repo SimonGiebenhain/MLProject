@@ -139,7 +139,6 @@ def get_board(game, player):
             board[x,y,0] = 0
     return board
 
-# TODO: work with body position of next state instead
 def get_state(game):
     player = game.player
     food = game.food
@@ -345,3 +344,38 @@ def get_state(game):
     #return np.expand_dims(np.asarray(state), 0)
     #return np.concatenate([ np.asarray(state), board_lin])
     return np.asarray(state) #, code
+
+pixel_to_grid_transform = lambda x: (floor(x[0]/20)-1, floor(x[1]/20)-1)
+
+def get_state_for_random_agent(game):
+
+    danger = get_immediate_danger(game)
+
+    for i in range(len(danger)):
+        if danger[i]:
+            danger[i]=1
+        else:
+            danger[i]=0
+
+    return {'danger': np.asarray(danger)}
+
+def elongate_path(G, path):
+    G_full = G.copy()
+    i = 0
+    while i < len(path) - 1:
+        G.remove_nodes_from(path)
+        node = path[i]
+        next_node = path[i+1]
+        neighbors = list(G_full[node]._atlas.keys())
+        next_neighbors = list(G_full[next_node]._atlas.keys())
+        for n in neighbors:
+            if G.has_node(n):
+                nn = list(G[n]._atlas.keys())
+                intersection =  [nod for nod in nn if nod in next_neighbors]
+                if len(intersection) > 0:
+                    path = path[:i+1] + [n, intersection[0]] + path[i+1:]
+                    break
+        i += 1
+
+    return path
+

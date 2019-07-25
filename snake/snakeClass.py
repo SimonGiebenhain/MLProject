@@ -2,7 +2,7 @@ import pygame
 from pygame.locals import *
 
 from random import randint, choice
-from Agents import BetterPathAgent
+from Agents import SimpleRandomAgent, BetterRandomAgent, SimplePathAgent, BetterPathAgent
 from util_functions import  get_board
 from PerformanceLogger import PerformanceLogger
 import numpy as np
@@ -15,7 +15,7 @@ import gc
 
 
 # Set options to activate or deactivate the game view, and its speed
-display_option = True
+display_option = False
 speed = 20
 pygame.font.init()
 
@@ -309,7 +309,7 @@ def plot_seaborn(array_counter, array_score):
 
 def run():
     pygame.init()
-    agent = BetterPathAgent()
+    agent = BetterRandomAgent()
     counter_games = 0
     score_plot = []
     counter_plot =[]
@@ -319,7 +319,7 @@ def run():
 
     eps_min = 0
     eps_max = 1
-    n_games = 100
+    n_games = 1000
     logger = PerformanceLogger(n_games, agent.type)
 
 

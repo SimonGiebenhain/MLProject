@@ -1,62 +1,12 @@
-# TODO: manchmal geht schlange durch essen durch
-
-
 import numpy as np
 import pandas as pd
 from math import floor
 from random import choice, sample
 from copy import deepcopy
 import networkx as nx
-from util_functions import get_immediate_danger
+from util_functions import get_immediate_danger, pixel_to_grid_transform, get_state_for_random_agent, elongate_path
 import matplotlib.pyplot as plt
 
-
-
-
-# TODO: move get state back to AGENT as method depends on agent!!!!!
-
-
-
-pixel_to_grid_transform = lambda x: (floor(x[0]/20)-1, floor(x[1]/20)-1)
-
-
-
-class BetterRandomAgent(object):
-
-    def __init__(self):
-        self.trainable = False
-        self.reward = 0
-        self.gamma = 0.95 # TODO check whether higher values work, maybe smaller learning rate or with different representation
-        self.dataframe = pd.DataFrame()
-        self.short_memory = np.array([])
-        self.agent_target = 1
-        self.agent_predict = 0
-        self.state_length = 25
-        self.code_length = 90
-        self.learning_rate = 0.0001
-        self.did_turn = 0
-        self.last_move = [1, 0, 0]
-        self.move_count = 0
-        #self.policy_net = self.network("weights.hdf5")
-        #self.target_net = self.network("weights.hdf5")
-        self.epsilon = 0
-        self.actual = []
-        self.type = 'BetterRandomAgent'
-
-    # TODO implement own get_state
-    def act(self, state):
-        possible_actions = []
-        if state[0] == 0:
-            possible_actions.append([1, 0, 0])
-        if state[1] == 0:
-            possible_actions.append([0, 1, 0])
-        if state[2] == 0:
-            possible_actions.append([0, 0, 1])
-
-        if len(possible_actions) == 0:
-            return [1, 0, 0]
-
-        return choice(possible_actions)
 
 
 class SimpleRandomAgent(object):
@@ -81,32 +31,60 @@ class SimpleRandomAgent(object):
         self.actual = []
         self.type = 'SimpleRandomAgent'
 
+    def get_state(self, game):
+        return get_state_for_random_agent(game)
+
+    def reset(self):
+        return
+
     # TODO implement own get_state
     # mybe link RandomAgent.get_state()
     def act(self, state):
         return choice([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
 
+class BetterRandomAgent(object):
 
-def elongate_path(G, path):
-    G_full = G.copy()
-    i = 0
-    while i < len(path) - 1:
-        G.remove_nodes_from(path)
-        node = path[i]
-        next_node = path[i+1]
-        neighbors = list(G_full[node]._atlas.keys())
-        next_neighbors = list(G_full[next_node]._atlas.keys())
-        for n in neighbors:
-            if G.has_node(n):
-                nn = list(G[n]._atlas.keys())
-                intersection =  [nod for nod in nn if nod in next_neighbors]
-                if len(intersection) > 0:
-                    path = path[:i+1] + [n, intersection[0]] + path[i+1:]
-                    break
-        i += 1
+    def __init__(self):
+        self.trainable = False
+        self.reward = 0
+        self.gamma = 0.95 # TODO check whether higher values work, maybe smaller learning rate or with different representation
+        self.dataframe = pd.DataFrame()
+        self.short_memory = np.array([])
+        self.agent_target = 1
+        self.agent_predict = 0
+        self.state_length = 25
+        self.code_length = 90
+        self.learning_rate = 0.0001
+        self.did_turn = 0
+        self.last_move = [1, 0, 0]
+        self.move_count = 0
+        #self.policy_net = self.network("weights.hdf5")
+        #self.target_net = self.network("weights.hdf5")
+        self.epsilon = 0
+        self.actual = []
+        self.type = 'BetterRandomAgent'
 
-    return path
+    def get_state(self, game):
+        return get_state_for_random_agent(game)
 
+    def reset(self):
+        return
+
+    # TODO implement own get_state
+    def act(self, state):
+        danger = state['danger']
+        possible_actions = []
+        if danger[0] == 0:
+            possible_actions.append([1, 0, 0])
+        if danger[1] == 0:
+            possible_actions.append([0, 1, 0])
+        if danger[2] == 0:
+            possible_actions.append([0, 0, 1])
+
+        if len(possible_actions) == 0:
+            return [1, 0, 0]
+
+        return choice(possible_actions)
 
 
 class SimplePathAgent(object):
