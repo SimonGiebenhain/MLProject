@@ -140,9 +140,6 @@ def new_get_board(game, player):
         board[x, y] = 0.5
     return board
 
-
-
-
 def get_board(game, player):
     board = np.zeros([20, 20, 4])
     board[:,:,0] = 1
@@ -403,3 +400,7 @@ def elongate_path(G, path):
 
     return path
 
+def shuffle_in_unison(board, value, policy):
+    assert len(board) == len(value) and len(board) == len(policy)
+    perm = np.random.permutation(len(board))
+    return board[perm, :, :, :], value[perm], policy[perm, :]

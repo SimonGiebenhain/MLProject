@@ -787,6 +787,7 @@ def gather_experience():
     n_games = 1000
 
     board_history = []
+    move_history = []
     score_history = []
     while counter_games < n_games:
 
@@ -815,6 +816,7 @@ def gather_experience():
                     board_history.append(np.transpose(np.array(boards), [1, 2, 0]))
                     boards = boards[1:]
                     num_boards += 1
+                    move_history.append(np.array(final_move))
 
 
         agent.reset()
@@ -826,12 +828,15 @@ def gather_experience():
         score_history = score_history + [game.score / (width * height)] * num_boards
 
 
-    y = np.array(score_history)
+    y_value = np.array(score_history)
+    y_move = np.array(move_history)
     X = np.array(board_history)
-    print(np.shape(y))
+    print(np.shape(y_value))
+    print(np.shape(y_move))
     print(np.shape(X))
     np.save('board_exp', X)
-    np.save('value_exp', y)
+    np.save('value_exp', y_value)
+    np.save('move_exp', y_move)
 
     # agent.policy_net.save_weights('weights.hdf5')
     # boards = np.asarray([agent.memory_board])
