@@ -1,17 +1,14 @@
 import pygame
-from pygame.locals import *
 
 from random import randint, choice
 from Agents import SimpleRandomAgent, BetterRandomAgent, SimplePathAgent, BetterPathAgent
-from util_functions import  get_board
+from util_functions import get_board, new_get_board
 from PerformanceLogger import PerformanceLogger
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-from math import sqrt
 from keras.utils import to_categorical
-import gc
 
 
 # Set options to activate or deactivate the game view, and its speed
@@ -24,15 +21,15 @@ class Game:
 
     def __init__(self, game_width, game_height):
         pygame.display.set_caption('Snake')
-        self.game_width = game_width
-        self.game_height = game_height
+        self.game_width = game_width * 20 + 40
+        self.game_height = game_height * 20 + 40
         self.gameDisplay = pygame.display.set_mode((game_width, game_height + 60))
         self.bg = pygame.image.load("img/background.png")  # TODO: put grid in background image?
         self.crash = False
         self.crash_reason = 0
         self.human = False
         self.player = Player(self)
-        self.food = Food()
+        self.food = Food(self)
         self.score = 0
 
 
@@ -222,9 +219,11 @@ def human_move(game, player, events):
 
 class Food(object):
 
-    def __init__(self):
-        self.x_food = 240
-        self.y_food = 200
+    def __init__(self, game):
+        x = 0.6 * game.game_width
+        y = 0.3 * game.game_height
+        self.x_food = x - x % 20
+        self.y_food = y - y % 20
         self.image = pygame.image.load('img/food2.png')
 
     def food_coord(self, game, player):
@@ -325,7 +324,7 @@ def run():
 
     while counter_games < n_games:
         # Initialize classes
-        game = Game(440, 440)
+        game = Game(10, 10)
         player1 = game.player
         food1 = game.food
 
@@ -779,7 +778,68 @@ def run_agent():
         counter_plot.append(counter_games)
     plot_seaborn(counter_plot, score_plot)
 
+def gather_experience():
+    width = 10
+    height = 10
+    pygame.init()
+    agent = BetterPathAgent()
+    counter_games = 0
+    n_games = 1000
+
+    board_history = []
+    score_history = []
+    while counter_games < n_games:
+
+        # Initialize classes
+        game = Game(height, width)
+        player1 = game.player
+        food1 = game.food
+
+        # Perform first move
+        initialize_game(player1, game, food1, agent)
+
+        steps = 0
+        boards = []
+        num_boards = 0
+        while not game.crash:
+            steps += 1
+            agent.epsilon = 0
+
+            state_old = agent.get_state(game)
+            board = new_get_board(game, player1)
+            final_move = agent.act(state_old)
+            player1.do_move(final_move, player1.x, player1.y, game, food1)
+            if not game.crash:
+                boards.append(board)
+                if len(boards) == 4:
+                    board_history.append(np.transpose(np.array(boards), [1, 2, 0]))
+                    boards = boards[1:]
+                    num_boards += 1
 
 
-run()
+        agent.reset()
+
+        counter_games += 1
+        print('Game', counter_games, '\t Score:', game.score)
+
+        print('The following number of boards was added: %d \n' % num_boards)
+        score_history = score_history + [game.score / (width * height)] * num_boards
+
+
+    y = np.array(score_history)
+    X = np.array(board_history)
+    print(np.shape(y))
+    print(np.shape(X))
+    np.save('board_exp', X)
+    np.save('value_exp', y)
+
+    # agent.policy_net.save_weights('weights.hdf5')
+    # boards = np.asarray([agent.memory_board])
+    # train = boards[:45000,:,:,:]
+    # np.save('x_train', train)
+    # test = boards[45000:,:,:,:]
+    # np.save('x_test', test)
+
+
+gather_experience()
 

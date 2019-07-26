@@ -119,7 +119,7 @@ def get_immediate_danger(game, big_neighbourhood=False):
         immediate_danger = [danger_straight, danger_right, danger_left]
     return immediate_danger
 
-def new_get_bord(game, player):
+def new_get_board(game, player):
     width = int( (game.game_width - 40) / 20 )
     height = int( (game.game_height - 40) / 20 )
     # empty
