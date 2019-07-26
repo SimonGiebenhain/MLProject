@@ -119,6 +119,30 @@ def get_immediate_danger(game, big_neighbourhood=False):
         immediate_danger = [danger_straight, danger_right, danger_left]
     return immediate_danger
 
+def new_get_bord(game, player):
+    width = int( (game.game_width - 40) / 20 )
+    height = int( (game.game_height - 40) / 20 )
+    # empty
+    board = 0.25 * np.ones([height, width])
+    if not game.crash:
+        # tail
+        for pos in player.position[:-1]:
+            x = floor(pos[0] / 20) - 1
+            y = floor(pos[1] / 20) - 1
+            board[x, y] = 1
+        # head
+        x = floor(player.x / 20) - 1
+        y = floor(player.y / 20) - 1
+        board[x, y] = 0.75
+        # food
+        x = floor(game.food.x_food / 20) - 1
+        y = floor(game.food.y_food / 20) - 1
+        board[x, y] = 0.5
+    return board
+
+
+
+
 def get_board(game, player):
     board = np.zeros([20, 20, 4])
     board[:,:,0] = 1
