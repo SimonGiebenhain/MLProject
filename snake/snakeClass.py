@@ -1,7 +1,10 @@
 import pygame
 
 from random import randint, choice
-from Agents import SimpleRandomAgent, BetterRandomAgent, SimplePathAgent, BetterPathAgent
+from Agents import BetterPathAgent, BetterRandomAgent
+from DQN import DQNAgent
+from new_conv import ConvDQNAgent
+from BiggerDQN import BiggerDQNAgent
 from util_functions import get_board, new_get_board
 from PerformanceLogger import PerformanceLogger
 import numpy as np
@@ -9,11 +12,12 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 from keras.utils import to_categorical
+from util_functions import get_immediate_danger
 
 
 # Set options to activate or deactivate the game view, and its speed
 display_option = False
-speed = 10
+speed = 50
 pygame.font.init()
 
 
@@ -23,8 +27,13 @@ class Game:
         pygame.display.set_caption('Snake')
         self.game_width = game_width * 20 + 40
         self.game_height = game_height * 20 + 40
-        self.gameDisplay = pygame.display.set_mode((game_width, game_height + 60))
-        self.bg = pygame.image.load("img/background.png")  # TODO: put grid in background image?
+        self.gameDisplay = pygame.display.set_mode((self.game_width, self.game_height + 60))
+        if self.game_width == 440:
+            self.bg = pygame.image.load("img/background.png")
+        elif self.game_width == 8*20+40:
+            self.bg = pygame.image.load("img/bg_small.png")
+        elif self.game_width == 6*20+40:
+            self.bg = pygame.image.load("img/bg_v_small.png")
         self.crash = False
         self.crash_reason = 0
         self.human = False
@@ -36,11 +45,13 @@ class Game:
 class Player(object):
 
     def __init__(self, game):
-        x = 0.45 * game.game_width
-        y = 0.5 * game.game_height
-        self.x = x - x % 20
-        self.y = y - y % 20
-        self.position = [(self.x, self.y)]
+        x = 60
+        y = 60
+        self.x = int(x - x % 20)
+        self.y = int(y - y % 20)
+        #self.position = [(20,20),(20,40),(20,60),(40,60),(self.x, self.y)]
+        #self.food = 5
+        self.position = [(self.y, self.y)]
         self.food = 1
         self.food_distance = 0
         self.food_distance_old = 10  # make sure no reward for first move
@@ -78,8 +89,8 @@ class Player(object):
         elif np.array_equal(move, [0, 0, 1]) and self.x_change == 0:  # left - going vertical
             move_array = [self.y_change, 0]
         self.x_change, self.y_change = move_array
-        self.x = x + self.x_change
-        self.y = y + self.y_change
+        self.x = int(x + self.x_change)
+        self.y = int(y + self.y_change)
         if self.x < 20 or self.x > game.game_width - 40 or self.y < 20 or self.y > game.game_height - 40:
             game.crash = True
             game.crash_reason = 0
@@ -96,7 +107,7 @@ class Player(object):
 
         eat(self, food, game)
 
-        if np.array_equal(move, [0,1,0]):
+        if np.array_equal(move, [0, 1, 0]):
             if self.consecutive_left_turns > 0:
                 self.consecutive_left_turns = 0
                 self.consecutive_straight_before_turn = 0
@@ -123,62 +134,6 @@ class Player(object):
         if game.crash:
             pygame.time.wait(50)
 
-
-def correct_move(game, player, final_move):
-     x = player.x
-     y = player.y
-     body = player.position
-
-     danger_straight = False
-     if player.x_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
-        danger_straight = True
-     elif player.x_change == -20 and ([x - 20, y] in body or x - 20 < 20):
-        danger_straight = True
-     elif player.y_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
-        danger_straight = True
-     elif player.y_change == -20 and ([x, y - 20] in body or y - 20 < 20):
-        danger_straight = True
-
-     danger_right = False
-     if player.x_change == 20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
-        danger_right = True
-     elif player.x_change == -20 and ([x, y - 20] in body or y - 20 < 20):
-        danger_right = True
-     elif player.y_change == 20 and ([x - 20, y] in body or x - 20 < 20):
-        danger_right = True
-     elif player.y_change == -20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
-        danger_right = True
-
-     danger_left = False
-     if player.x_change == 20 and ([x, y - 20] in body or y - 20 < 20):
-        danger_left = True
-     elif player.x_change == -20 and ([x, y + 20] in body or y + 20 >= game.game_height - 20):
-        danger_left = True
-     elif player.y_change == 20 and ([x + 20, y] in body or x + 20 >= game.game_width - 20):
-        danger_left = True
-     elif player.y_change == -20 and ([x - 20, y] in body or x - 20 < 20):
-        danger_left = True
-
-     if not (danger_straight and danger_right and danger_left):
-        if np.array_equal(final_move, [1, 0, 0]) and danger_straight:
-            if not danger_left:
-                final_move = [0,0,1]
-            else:
-                final_move = [0,1,0]
-        elif np.array_equal(final_move, [0, 1, 0]) and danger_right:
-            if not danger_left:
-                final_move = [0,0,1]
-            else:
-                final_move = [1,0,0]
-        elif np.array_equal(final_move, [0, 0, 1]) and danger_left:
-            if not danger_right:
-                final_move = [0,1,0]
-            else:
-                final_move = [1,0,0]
-     else:
-        print('WTF')
-
-     return final_move
 
 def human_move(game, player, events):
     final_move = [1, 0, 0]
@@ -220,10 +175,9 @@ def human_move(game, player, events):
 class Food(object):
 
     def __init__(self, game):
-        x = 0.6 * game.game_width
-        y = 0.3 * game.game_height
-        self.x_food = x - x % 20
-        self.y_food = y - y % 20
+        food = self.food_coord(game, game.player)
+        self.x_food = food[0]
+        self.y_food = food[1]
         self.image = pygame.image.load('img/food2.png')
 
     def food_coord(self, game, player):
@@ -262,10 +216,11 @@ def display_ui(game, score, record):
     text_score_number = myfont.render(str(score), True, (0, 0, 0))
     text_highest = myfont.render('HIGHEST SCORE: ', True, (0, 0, 0))
     text_highest_number = myfont_bold.render(str(record), True, (0, 0, 0))
-    game.gameDisplay.blit(text_score, (45, 440))
-    game.gameDisplay.blit(text_score_number, (120, 440))
-    game.gameDisplay.blit(text_highest, (190, 440))
-    game.gameDisplay.blit(text_highest_number, (350, 440))
+    if game.game_width == 440:
+        game.gameDisplay.blit(text_score, (45, 440))
+        game.gameDisplay.blit(text_score_number, (120, 440))
+        game.gameDisplay.blit(text_highest, (190, 440))
+        game.gameDisplay.blit(text_highest_number, (350, 440))
     game.gameDisplay.blit(game.bg, (10, 10))
 
 
@@ -283,20 +238,26 @@ def update_screen():
 
 
 def initialize_game(player, game, food, agent):
-    state_init1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food)
-    state_init2 = agent.get_state(game)
     if agent.trainable:
-        reward1 = agent.set_reward(game, player, game.crash, game.crash_reason, action, state_init1, 0)
-        agent.remember(state_init1, action, reward1, state_init2, game.crash)
-        agent.replay_new()
+        state_init1 = agent.get_state(game)['state']
+        action = [1, 0, 0]
+        player.do_move(action, player.x, player.y, game, food)
+        state_init2 = agent.get_state(game)['state']
+        reward1 = agent.set_reward(game, player, game.crash, 0)
+        #agent.remember(state_init1, action, reward1, state_init2, game.crash)
+        #agent.replay_new()
 
 def initialize_game_conv(player, game, food, agent):
-    state_init1, board_1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
+    board_1 = agent.get_state(game)  # [0 0 0 0 0 0 0 0 0 1 0 0 0 1 0 0]
     action = [1, 0, 0]
     player.do_move(action, player.x, player.y, game, food)
-    return board_1
+    board_2 = agent.get_state(game)
+    player.do_move(action, player.x, player.y, game, food)
+    board_3 = agent.get_state(game)
+
+    return board_1, board_2, board_3
 
 def plot_seaborn(array_counter, array_score):
     sns.set(color_codes=True)
@@ -305,10 +266,68 @@ def plot_seaborn(array_counter, array_score):
     ax.set(xlabel='games', ylabel='score')
     plt.show()
 
+def test_agent(agent, record):
+    game = Game(6, 6)
+    player1 = game.player
+    food1 = game.food
+    board_old3, board_old2, board_old1 = initialize_game_conv(player1, game, food1, agent)
+    display(player1, food1, game, record)
+    steps = 0
+    while not game.crash:
+        steps += 1
+        if steps > 100:
+            game.crash = True
+
+        board = agent.get_state(game)
+        board_inp = np.stack([board_old3, board_old2, board_old1, board], 2)
+        final_move = agent.act(board_inp)
+
+        events = pygame.event.get()
+
+        # perform new move and get new state
+        player1.do_move(final_move, player1.x, player1.y, game, food1)
+
+        if player1.eaten:
+            steps = 0
+
+        display(player1, food1, game, record)
+        pygame.time.wait(speed)
+        board_old3 = board_old2
+        board_old2 = board_old1
+        board_old1 = board
+    print(game.score)
+
+def log_test_runs(agent, size, logger, n_games):
+    pygame.init()
+    for i in range(n_games):
+        game = Game(size, size)
+        player1 = game.player
+        food1 = game.food
+        initialize_game(player1, game, food1, agent)
+        steps = 0
+        while not game.crash:
+                steps += 1
+                if steps > 1000:
+                    game.crash = True
+
+                state_old = agent.get_state(game)
+                final_move = agent.act(state_old)
+
+                # perform new move and get new state
+                player1.do_move(final_move, player1.x, player1.y, game, food1)
+                if not game.crash:
+                    logger.log_move(final_move, player1.food, player1.eaten)
+
+                if player1.eaten:
+                    steps = 0
+
+        logger.log_death(state_old, game.score)
+
 
 def run():
     pygame.init()
-    agent = BetterRandomAgent()
+    agent = BiggerDQNAgent()
+    #agent.trainable = False
     counter_games = 0
     score_plot = []
     counter_plot =[]
@@ -316,15 +335,17 @@ def run():
     less_randomness = 0
     old_record = 0
 
+    size = 20
+
     eps_min = 0
     eps_max = 1
-    n_games = 1000
-    logger = PerformanceLogger(n_games, agent.type)
+    n_games = 3000
+    logger = PerformanceLogger(n_games, agent.type, size)
 
 
     while counter_games < n_games:
         # Initialize classes
-        game = Game(10, 10)
+        game = Game(size, size)
         player1 = game.player
         food1 = game.food
 
@@ -336,8 +357,8 @@ def run():
         steps = 0
         while not game.crash:
             steps += 1
-            #if steps > 1000:
-            #    game.crash = True
+            if steps > 1000:
+                game.crash = True
 
             #if step > 200 and counter_games > 80 and player1.food < 15:
             #    game.crash = True
@@ -347,7 +368,7 @@ def run():
             # if counter_games > 150:
             #    agent.epsilon = 0
             if agent.trainable:
-                agent.epsilon = max(eps_min, eps_max - (eps_max - eps_min) * 1.5*counter_games / n_games)
+                agent.epsilon = max(eps_min, eps_max - (eps_max - eps_min) * 1.2 * counter_games / n_games)
             else:
                 agent.epsilon = 0
 
@@ -385,40 +406,37 @@ def run():
 
             # perform new move and get new state
             player1.do_move(final_move, player1.x, player1.y, game, food1)
-            if not game.crash:
-                logger.log_move(final_move)
+            #if not game.crash:
+            #    logger.log_move(final_move, player1.food, player1.eaten)
             state_new = agent.get_state(game)
 
             if player1.eaten:
                 steps = 0
             # set treward for the new state
             if agent.trainable:
-                reward = agent.set_reward(game, player1, game.crash, game.crash_reason, final_move, state_old, steps)
+                reward = agent.set_reward(game, player1, game.crash, steps)
+                #agent.train_short_memory(state_old['state'], final_move, reward, state_new['state'], game.crash)
 
-            # train short memory base on the new action and state
-                agent.train_short_memory(state_old, final_move, reward, state_new, game.crash)
+                # train short memory base on the new action and state
+                agent.train_short_memory(state_old['state'], final_move, reward, state_new['state'], game.crash)
             #agent.target_net.set_weights(agent.policy_net.get_weights())
 
                 if not game.crash and not player1.eaten:
-                    if (state_old[0] == 0 and state_old[1] == 0 and state_old[2] == 0) and np.random.uniform() < 0.2:
-                        agent.remember(state_old, final_move, reward, state_new, game.crash)
+                    if (state_old['state'][0] == 0 and state_old['state'][1] == 0 and state_old['state'][2] == 0) and np.random.uniform() < 0.2:
+                        agent.remember(state_old['state'], np.array(final_move), reward, state_new['state'], game.crash)
                 else:
-                    agent.remember(state_old, final_move, reward, state_new, game.crash)
+                    agent.remember(state_old['state'], np.array(final_move), reward, state_new['state'], game.crash)
 
             record = get_record(game.score, record)
-            if display_option:
+            if display_option:# and counter_games % 50 == 0:
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
 
-        agent.reset()
-        logger.log_death(state_old, game.score)
-        #if counter_games > 50:
         if agent.trainable:
-            agent.replay_new_vectorized()
-        #agent.replay_new_vectorized()
+            agent.replay_new()
 
-        #else:
-        #agent.replay_new()
+        agent.reset()
+        #logger.log_death(state_old, game.score)
 
         counter_games += 1
         print('Game', counter_games, '\t Score:', game.score, '\t epslion', agent.epsilon)
@@ -427,12 +445,15 @@ def run():
             less_randomness += 10
         counter_plot.append(counter_games)
 
-        if counter_games % 10 == 0 and agent.trainable:
+        if counter_games % 20 == 0 and agent.trainable:
             agent.target_net.set_weights(agent.policy_net.get_weights())
+        if counter_games % 100 == 0:
+            log_test_runs(agent, size, logger, 50)
+
 
         if old_record < record and agent.trainable:
             old_record = record
-            agent.policy_net.save_weights('vicinity10_weights.hdf5')
+            agent.policy_net.save_weights('weights/2FinalBiggerDQN'+str(size)+'.hdf5')
     #agent.policy_net.save_weights('weights.hdf5')
     #boards = np.asarray([agent.memory_board])
     #train = boards[:45000,:,:,:]
@@ -441,14 +462,59 @@ def run():
     #np.save('x_test', test)
 
 
-    logger.complete_log()
+    logger.complete_log(agent.trainable)
 
     plot_seaborn(counter_plot, score_plot)
+
+def run_n_logs(agent, n_games, size):
+    pygame.init()
+    agent.trainable = False
+    counter_games = 0
+    record = 0
+    logger = PerformanceLogger(n_games, agent.type, size)
+
+
+    while counter_games < n_games:
+        # Initialize classes
+        game = Game(size, size)
+        player1 = game.player
+        food1 = game.food
+
+        # Perform first move
+        initialize_game(player1, game, food1, agent)
+
+        steps = 0
+        while not game.crash:
+            steps += 1
+            if steps > 1000:
+                game.crash = True
+
+            state_old = agent.get_state(game)
+            final_move = agent.act(state_old)
+
+            # perform new move and get new state
+            player1.do_move(final_move, player1.x, player1.y, game, food1)
+            if not game.crash:
+                logger.log_move(final_move, player1.food, player1.eaten)
+
+            if player1.eaten:
+                steps = 0
+
+            record = get_record(game.score, record)
+
+        agent.reset()
+        logger.log_death(state_old, game.score)
+
+        counter_games += 1
+        print('Game', counter_games, '\t Score:', game.score, '\t epslion', agent.epsilon)
+
+    logger.complete_log(agent.trainable)
 
 
 def run_conv():
     pygame.init()
-    agent = DQNAgent()
+    agent = ConvDQNAgent()
+    #guide = DQNAgent()
     counter_games = 0
     score_plot = []
     counter_plot =[]
@@ -456,18 +522,18 @@ def run_conv():
     less_randomness = 0
     old_record = 0
 
-    eps_min = 0.2
-    eps_max = 1
-    n_games = 30000
+    eps_min = 0
+    eps_max = 0.4
+    n_games = 5000
 
     while counter_games < n_games:
         # Initialize classes
-        game = Game(440, 440)
+        game = Game(6, 6)
         player1 = game.player
         food1 = game.food
 
         # Perform first move
-        board_old = initialize_game_conv(player1, game, food1, agent)
+        board_old3, board_old2, board_old1 = initialize_game_conv(player1, game, food1, agent)
         if display_option:
             display(player1, food1, game, record)
 
@@ -475,7 +541,7 @@ def run_conv():
         steps = 0
         while not game.crash:
             steps += 1
-            if steps > 400:
+            if steps > 300:
                 game.crash = True
             #if step > 200 and counter_games > 80 and player1.food < 15:
             #    game.crash = True
@@ -489,29 +555,35 @@ def run_conv():
             # agent.epsilon = 0
             # get old state
             if not game.human:
-                state, board = agent.get_state(game)
-                board_inp = np.stack([board_old, board], 2)
+                board = agent.get_state(game)
+                #guide_state = guide.get_state(game)
+                board_inp = np.stack([board_old3, board_old2, board_old1, board], 2)
                 # perform random actions based on agent.epsilon, or choose the action
                 if np.random.rand() < agent.epsilon:
-                    # if np.random.uniform() <= agent.epsilon:
-                    if np.random.rand() < max(0.05, agent.epsilon/2):
-                        final_move = to_categorical(randint(0, 2), num_classes=3)
+                    #if counter_games % 2 == 0:
+                    #    final_move = randint(0, 2)
+                    #else:
+                    possible_action = []
+                    danger = get_immediate_danger(game, False)
+                    if danger[0] == 0:
+                        possible_action.append(0)
+                    if danger[1] == 0:
+                        possible_action.append(1)
+                    if danger[2] == 0:
+                        possible_action.append(2)
+                    if len(possible_action) > 0:
+                        final_move = choice(possible_action)
                     else:
-                        possible_action = []
-                        if state[0] == 0:
-                            possible_action.append([1, 0, 0])
-                        if state[1] == 0:
-                            possible_action.append([0, 1, 0])
-                        if state[2] == 0:
-                            possible_action.append([0, 0, 1])
-                        if len(possible_action) > 0:
-                            final_move = choice(possible_action)
-                        else:
-                            final_move = choice([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+                        final_move = 0
+                    final_move = to_categorical(final_move, num_classes=3)
+
                 else:
                     # predict action based on the old state
-                    prediction = agent.policy_net.predict([np.reshape(state, [1, agent.state_length]), np.expand_dims(board_inp,0)])
-                    final_move = to_categorical(np.argmax(prediction[0]), num_classes=3)
+                    #if counter_games % 10 == 0:
+                    #    if np.random.rand() < 0.5:
+                    #        final_move = guide.act(guide_state)
+                    #else:
+                    final_move = agent.act(board_inp)
                     #final_move = correct_move(game, player1, final_move)
             else:
                 final_move = [1, 0, 0]
@@ -532,30 +604,53 @@ def run_conv():
 
             # perform new move and get new state
             player1.do_move(final_move, player1.x, player1.y, game, food1)
-            state_new, board_new = agent.get_state(game)
+            board_new = agent.get_state(game)
 
             if player1.eaten:
                 steps = 0
             # set treward for the new state
-            reward = agent.set_reward(game, player1, game.crash, game.crash_reason, final_move, state, steps)
+            reward = agent.set_reward(game, player1, game.crash, steps)
 
             # train short memory base on the new action and state
             #agent.target_net.set_weights(agent.policy_net.get_weights())
+            board_inp_rot1 = np.rot90(board_inp, 1, axes=(0,1))
+            board_inp_rot2 = np.rot90(board_inp, 2, axes=(0,1))
+            board_inp_rot3 = np.rot90(board_inp, 3, axes=(0,1))
+            next_board = np.stack([board_old2, board_old1, board, board_new], 2)
+            next_board_rot1 = np.rot90(next_board, 1, axes=(0,1))
+            next_board_rot2 = np.rot90(next_board, 2, axes=(0,1))
+            next_board_rot3 = np.rot90(next_board, 3, axes=(0,1))
 
-            if not game.crash and not player1.eaten:
-                if (state[0] == 0 and state[1] == 0 and state[2] == 0) and np.random.uniform() < max(0.2, 1-agent.epsilon):
-                    agent.remember(state, board_inp, final_move, reward, state_new, np.stack([board, board_new], 2), game.crash)
+            if game.crash or reward == 1:
+                #danger = get_immediate_danger(game, False)
+                #if not (danger[0] == 1 and danger[1] == 1 and danger[2] == 1):
+                #    agent.remember_dead(board_inp, final_move, reward, next_board, game.crash)
+                #    agent.remember_dead(board_inp_rot1, final_move, reward, next_board_rot1, game.crash)
+                #    agent.remember_dead(board_inp_rot2, final_move, reward, next_board_rot2, game.crash)
+                #    agent.remember_dead(board_inp_rot3, final_move, reward, next_board_rot3, game.crash)
+
+                agent.remember(board_inp, final_move, reward, next_board, game.crash)
+                agent.remember(board_inp_rot1, final_move, reward, next_board_rot1, game.crash)
+                agent.remember(board_inp_rot2, final_move, reward, next_board_rot2, game.crash)
+                agent.remember(board_inp_rot3, final_move, reward, next_board_rot3, game.crash)
             else:
-                agent.remember(state, board_inp, final_move, reward, state_new, np.stack([board, board_new], 2), game.crash)
+                agent.remember(board_inp, final_move, reward, next_board, game.crash)
+                agent.remember(board_inp_rot1, final_move, reward, next_board_rot1, game.crash)
+                agent.remember(board_inp_rot2, final_move, reward, next_board_rot2, game.crash)
+                agent.remember(board_inp_rot3, final_move, reward, next_board_rot3, game.crash)
 
             board_old = board
 
             record = get_record(game.score, record)
-            if display_option and counter_games % 50 == 0 and counter_games > 100:
+            if display_option and counter_games % 50 == 0:
                 display(player1, food1, game, record)
                 pygame.time.wait(speed)
-
-        agent.replay_new_vectorized()
+            if counter_games > 100:
+                agent.replay_new()
+                #agent.replay_dead()
+            board_old3 = board_old2
+            board_old2 = board_old1
+            board_old1 = board
 
         counter_games += 1
         print('Game', counter_games, '\t Score:', game.score, '\t epslion', agent.epsilon)
@@ -564,69 +659,18 @@ def run_conv():
             less_randomness += 10
         counter_plot.append(counter_games)
 
-        #if counter_games % 20 == 0:
-        #agent.target_net.set_weights(agent.policy_net.get_weights())
+        if counter_games % 40 == 0:
+            agent.target_net.set_weights(agent.policy_net.get_weights())
+            print(len(agent.memory_done))
+            test_agent(agent, record)
 
+        if counter_games % 500 == 0 and counter_games > 1:
+            file_name = 'weights/conv_weights_' + str(counter_games) + '.hdf5'
+            agent.policy_net.save_weights(file_name)
         if old_record < record:
             old_record = record
-            agent.policy_net.save_weights('conv_model_weights.hdf5')
+            #agent.policy_net.save_weights('weights/conv_weights.hdf5')
 
-        #gc.collect()
-
-    #agent.policy_net.save_weights('weights.hdf5')
-    #boards = np.asarray([agent.memory_board])
-    #train = boards[:45000,:,:,:]
-    #np.save('x_train', train)
-    #test = boards[45000:,:,:,:]
-    #np.save('x_test', test)
-
-    plot_seaborn(counter_plot, score_plot)
-
-def run_mc():
-    pygame.init()
-    agent = DQNAgent()
-    counter_games = 0
-    score_plot = []
-    counter_plot =[]
-    record = 0
-    less_randomness = 0
-    old_record = 0
-
-    eps_min = 0
-    eps_max = 1
-    n_games = 5000
-
-    while counter_games < n_games:
-        # Initialize classes
-        game = Game(440, 440)
-        player1 = game.player
-        food1 = game.food
-
-        # Perform first move
-        initialize_game(player1, game, food1, agent)
-        if display_option:
-            display(player1, food1, game, record)
-
-        action_old = [1, 0, 0]
-        state_old = agent.get_state(game)
-        steps = 0
-        while not game.crash:
-            steps += 1
-            state = agent.get_state(game)
-            final_move = agent.act(game, state, state_old, action_old)
-            player1.do_move(final_move, player1.x, player1.y, game, food1)
-            state_old = state
-            action_old = final_move
-
-            record = get_record(game.score, record)
-            if display_option:
-                display(player1, food1, game, record)
-                pygame.time.wait(speed)
-
-        counter_games += 1
-        print('Game', counter_games, '\t Score:', game.score)
-        score_plot.append(game.score)
-        counter_plot.append(counter_games)
 
     plot_seaborn(counter_plot, score_plot)
 
@@ -703,7 +747,6 @@ def run_human():
         score_plot.append(game.score)
         counter_plot.append(counter_games)
     plot_seaborn(counter_plot, score_plot)
-
 
 def run_agent():
     pygame.init()
@@ -846,5 +889,15 @@ def gather_experience():
     # np.save('x_test', test)
 
 
-gather_experience()
+def script():
+    agents = [BetterRandomAgent(), BetterPathAgent(), DQNAgent()]
+    field_sizes = [8, 20]
+    n_games = 1000
+    for size in field_sizes:
+        for agent in agents:
+            run_n_logs(agent, n_games, size)
 
+#script()
+#run_conv()
+
+run()
