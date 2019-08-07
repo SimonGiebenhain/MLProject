@@ -3,4 +3,6 @@
 
 This work was done as a final project for the Machine Learning course at the University of Konstant.
 
-# Attention: I did not have time to clean up the repository yet. It is very chaotic. There are old function still present which contain erronous code.
+## Attention: I did not have time to clean up the repository yet. It is very chaotic. There are old function still present which contain erronous code.
+
+## When I find some time, I will clean up and maybe write a small tutorial in this READ.ME file
