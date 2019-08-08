@@ -1,0 +1,335 @@
+\documentclass{article}
+
+
+\usepackage{arxiv}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
+\usepackage{lipsum}		% Can be removed after putting your text content
+\usepackage{amsmath}
+\usepackage[authoryear]{natbib}
+\usepackage{graphicx}
+\usepackage{subfig}
+
+\newcommand{\cmmnt}[1]{\ignorespaces}
+\newcommand{\RL}{\emph{RL} }
+\newcommand{\ML}{\emph{ML} }
+\DeclareMathOperator*{\argmax}{arg\!max}
+
+
+\title{Project Report: Teaching an AI to play \emph{SNAKE}}
+
+%\date{September 9, 1985}	% Here you can change the date presented in the paper title
+%\date{} 					% Or removing it
+
+\author{
+  Simon Giebenhain\thanks{The work was done as a final project for the \emph{Machine Learning} course taught by \emph{Prof. Lyudmila Grigoryeva}} \\
+  University of Konstanz \\
+ Department of Compuer Science \\
+  \texttt{simon.giebenhain@uni-konstanz.de} \\
+}
+   
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+In this project report I present some approaches to play the game SNAKE. The main focus lies on agents trained with the DQN algorthim. I describe the problems I encountered when working with the DQN algorithm and give reason why I now believe that the DQN algorithm is not the right choice to learn how to play SNAKE. In order to account for the planning aspect of the game, I incorporated the simplest kind of Monte Carlo Search to help the DQN agent make its decisions. Combining these two approaches yield decent results.
+\end{abstract}
+
+
+% keywords can be removed
+%\keywords{First keyword \and Second keyword \and More}
+
+
+\section{Introduction}
+
+
+
+In recent years advancements in \emph{Machine Learning (ML)}, \emph{Deep Learning (DL)} and \emph{Reinforcement Learning (RL)} have enabled computers to play even the most complex games. Thus I tried to tackle the classic game SNAKE with modern approches. The accompanying code can be found in this \href{https://github.com/SimonGiebenhain/MLProject/}{GitHub repositiory}.
+
+\subsection{The game SNAKE}
+Although the game SNAKE might look very simple at first glance, the later game stages are deceptively hard. The beginning of the game is easy as the agent can gather apples unbothered. However with progressing length of its body, the task of gathering more apples becomes harder and careful planning is required to not get trapped in the tail of snake. There are some more RL specific issues with SNAKE which will be dicussed in Section \ref{dqnProblems}. \\ 
+
+Since ther are multiple popular rulesets for the game, I list the rules I used below:
+\begin{enumerate}
+	\item With every eaten apple the snake becomes one block longer. However the length doesn't increase immediately. It increases only when the last body part of the snake leaves the position where the apple was collected
+	\item The snake dies when it leaves the designated board (and does \emph{not} reappear on the other side)
+	\item The snake dies when it hits its own body
+\end{enumerate}
+
+\subsection{Advancements in \emph{RL}}
+ Especially the \emph{Google Deepmind} team has been very successful in various games of the past few years. \cite{atari} achieved a super-human level in many games on the ATARI console, just from visual input. 
+ In 2016 Silver et al. \cite{alphaGo} beat a professional Go player. Beforehand Go was believed to be far too complex for the computers of the current generation. Recently top professional players of very complex strategy games like DOTA  (\cite{openAiDota}) and Starcraft2 (\cite{alphaStar}) have been beaten by AI agents.
+ 
+ \subsection{The structure of this report}
+ In Section \ref{rl} I cover the basics of \RL, followed by an introduction to Q-learning in Section \ref{Q-learning} and details of the DQN algorithm in Section \ref{dqnAlgorithm}. The reader can safely skip those topics he/she is already familiar with. Section \ref{agents} is the heart of this report giving the most important information about all agents I tried out. The main focus is on DQN agents (section \ref{dqnAgents}). I also list potential problems which make the game of SNAKE hard to learn with Q-learning in Section \ref{dqnProblems}. Section \ref{performance} compares the performance of all agents. In Section \ref{outlook} and \ref{conclusion} I conclude my work and state more approaches which might do better than what I tried so far.
+
+
+\section{Reinforcement Learning}
+
+\subsection{Foundations of \RL}
+\label{rl}
+
+If the reader is familiar with the topics of \RL he/she may skip to Section \ref{dqnAlgorithm}. Since I am only giving a very brief overview I refer the reader to \cite{introRL} for further reading on \RL. \\ 
+\RL is the area of \ML which deals with sequential decision making. \RL is based on the formal framework of \emph{Markovian Decision Processes (MPDs)} which is used as a mathematical model of the environment and the agent's decisions over time. A \emph{MDP} is a 5-tupel  $(\mathcal{S}, \mathcal{A}, T, R, \gamma)$, where: 
+\begin{itemize}
+	\item $\mathcal{S}$ is the state space
+	\item $\mathcal{A}$ is the action space
+	\item $T: \mathcal{S} \times \mathcal{A} \times \mathcal{S}: \rightarrow [0, 1]$ is the state transition function, and gives the conditional probability: $${T(s,a,s') = P(S_{t+1}=s' | S_t=s, a)}$$
+	\item $R: \mathcal{S} \times \mathcal{A}: \rightarrow \mathbb{R}$ is the reward function
+	\item $\gamma \in [0,1)$ is the discount factor used to calculate the total reward
+\end{itemize}
+
+The goal of \RL is to find a policy $\pi: \mathcal{S} \rightarrow \mathcal{A}$ which maximize the expected return (note that I am restricting this to deterministic policies only):
+\begin{equation}
+	V^{\pi}: \mathcal{S} \rightarrow \mathbb{R}, \quad s \mapsto \mathbb{E}\left[ \sum_{k=0}^{\infty} \gamma^k r_{t+k}    \mid  s_t=s, \pi \right ] 
+\end{equation}
+, where $r_t = R(s_t, a_t)$ and the expectation is with respect to $P(s_{t+1} | s_t, a_t)$. Similarily one can define the Q-function, which gives the expected return for taking an action $a$ in a state $s$:
+\begin{equation}
+	Q^{\pi}: \mathcal{S} \times \mathcal{A} \rightarrow \mathbb{R}, \quad (s,a) \mapsto \mathbb{E}\left[ \sum_{k=0}^{\infty} \gamma^k r_{t+k}    \mid  s_t=s, a_t = a, \pi \right ]
+\end{equation}
+
+The optimal Q-function is defined as $Q^*(s,a) := \max_{\pi \in \Pi} Q^{\pi}(s,a)$. (Don't ask me why or if that max operator is well defined, since diffenrt $\pi$ could give different maxima for different $s$ and $a$. Basically for the sake of completeness I am just copying from Chapter 3 in \cite{introRL}.) The advantge of $Q^*$ is that it indirectly defines the optimal policy as: $\pi^*(s) = \argmax_{a \in \mathcal{A}}Q^*(s,a)$. Therefore if one had access to $Q^*$ one also would know the optimal policy. Q-learning tries to approximate $Q^*$ and thus approximate $\pi^*$ indirectly.
+
+\subsection{Q-Learning}
+\label{Q-learning}
+Q-learning is an approach to \RL, which utilizes a parameterized version $Q(s,a;\theta)$ of the Q-function and tries to approximate $Q^*$ with it. Q-learning makes use of the Bellman Equation, which is a recursive formula for the Q function: 
+\begin{equation}
+		 Q^{\pi}(s,a) = r(s,a) + \gamma \cdot  \mathbb{E}\left[ Q^{\pi}(s',a') \right]
+\end{equation}
+The expected value is respective to $P(s' | s, a) $ (and respective to $P(a' | s')$ in case the policy is stochastic).
+Based on the Bellman equation for $Q^*$: 
+\begin{equation}
+ Q^{*}(s,a) = r(s,a) + \gamma \cdot \mathbb{E}\left[ \max_{a' \in \mathcal{A}}Q^{*}(s',a') \right]
+\end{equation}
+
+we define the target  for a training tupel $(s,a,s',r)$: 
+\begin{equation}
+Y_k^Q := r + \gamma \cdot \max_{a' \in \mathcal{A}}Q(s',a';\theta_k)
+\end{equation}
+Since $Q^*$ satisfies Equation (4)
+we want our approximation $Q(\cdot,\cdot;\theta)$ to also satisfy Equation (4).
+In order to achieve this we just force the equation to approximately hold, by minimizing the squared error (for mini-batches the mean sqaured error is used):
+\begin{equation}
+	L_{DQN} := \left(  Q(s,a;\theta_k) - Y_k^Q  \right)^2
+\end{equation}
+
+The biggest problem of Q-learning is that the parameters we optimize are also involved in the definition of the target we optimize towards. This leads to significant instabilities in training, because overestimations can propagate very quickly.
+
+\subsection{The DQN Algorithm}
+\label{dqnAlgorithm}
+The DQN-Algorithm was introduced in \cite{atari} and is a variant of the classic Q-learning algorithm, which uses some heuristics to stabalize training and enables the approximation of more complex functions by modeling the Q-function with a deep neural networks. In the following I quickly summarize the key points of the DQN algorithm. \\
+
+As described in Section \ref{Q-learning} Q-learning shows convergence problems and substantial overestimations. Mnih et al. therefore introduced a second neural network, called the \emph{target net}, which is only used to calculate the target in Equation (5). The weights of the \emph{target network} are then periodically set to the weights of the \emph{policy net}, which is the neural network which is actually trained. The authors claim that this improves convergence and slows down the propagation of instabilities. \\
+Furthermore a so called \emph{replay memory} is introduced, which stores past experience gathered in tupels of the form $(s, a, s', r)$. Every single tupel contains all the information needed to calculate $L_{DQN}$ (Equation (6)). Therefore convergence is further stabalized by doing SGD on mini-batches sampled from the \emph{replay memory}, instead of single tuple updates. They use the RMSprop ( \cite{tielemann2012}) variant of SGD.\\
+Additionally they utilize an $\epsilon \emph{-greedy}$ stratedgy, which means that with propability of $\epsilon$ a random action is taken instead of $\argmax_{a \in \mathcal{A}} Q(s,a;\theta)$. This strategy ensures that the state space is sufficiently explored in the early stages of training and that promosing strategies can be exploited in the later stages. \\
+Finally the discount factor $\gamma$ is set to zero when $s'$ is a terminal state.\\
+
+There are several attempts to lessen the training instabilities. Notable is the Double-DQN algorithm (\cite{ddqn}) and the Dueling DQN architecture (\cite{duelingdqn}). However trying those approaches was out of scope for this project, especially because I believe that Q-learning is not the best approach to play SNAKE, as described in Section \ref{dqnProblems}
+
+\subsection{Policy based approaches}
+So far only Q-learning was covered, which is a \RL method which only indirectly represents the policy. On the other hand there are policy based approaches, which belong to another class of \RL algotihms. These approaches represent the policy directly, i.e. with a neural network. Typically they take the gradient of the expected reward with respect to the parameters of the policy function and optimize the parameters this way. Since I did not really try any of these approaches my knowledge of them is extremly limited and I won't mention them a lot. I refer the reader to Chapter 5 of \cite{introRL}. \\
+The AlphaZero algorithm (\cite{alphaZero}) also counts in this category, although it is a bit different. In this approach a \emph{Monte Carlo Tree Search} (MCTS) is utilized to generate high quality gameplay. In a second step a neural network is trainined in a \emph{supervised} fashion to predict the decisions from the past gameplay and also to predict the outcome of each game. In the following iterations the already learned knowledge of neural network is used to guide the seach in the MCTS to generate even better gameplay. Progressivley the network gets higher quality plays to learn from and the MCTS is able to generate higher quality data, up to a point where the performance passes human and previous \RL-techniques.\\
+I believe that such an approach would definitely do better in the game of SNAKE, since it is able to cope with complex planning, as demonstarted when the same algorithm did produces agents at a higher level than the best humans in chess and go.
+
+\section{Different SNAKE Agents}
+\label{agents}
+In this section all of my approaches to play SNAKE are described. Before describing \ML appraoches to play SNAKE, I am presenting some classical approaches. Whether \ML can help beating their performance can be seen in Section \ref{performance}, where I compare the performance of all presented approaches.
+
+\subsection{Non-\ML Agents}
+
+\paragraph{Random Agents}
+Out of curiosity and as the most simple of benchmarks I implemented two types of random agents. The \emph{Simple Random Agent} takes action completely randomly without constraints. The \emph{Better Random Agent} chooses random actions from those actions which wouldn't kill the snake immediately. When there is no such move, the action doesn't matter and it chooses to go straight.
+
+\paragraph{Path based Agents}
+As another benchmark I implemented a greedy agent, which is based in finding the shortest path from the head of the snake to the apple. The game can be represented as a lattice graph. For those how are not familiar with graph theory, I refer to  \cite{latticeGraph}. Then one can use standard shortest path finding algorithms such as Dijkstras Algorithm, to find a path from the head of the snake to the apple. When such a path is not available, because all paths are blocked by the snake's own body, I choose a random position which is connected to the head of the sanke and go there. It turns out that going there on the shortest path is worse than going there in a convoluted way in order to achieve a more compact position of the snakes body and making room for future moves. I briefly describe the key steps in the algorithm:
+\begin{enumerate}
+	\item Find shortest path from head to apple, if now such path is available choose a random available position and go there by means of a long path
+	\item If the target of the precompute path from \emph{Step 1} is \emph{not} the apple check whether a path to the apple is available. If so use this path instead.
+	\item Follow one step along the path
+	\item When arrived at the end of the path go to \emph{Step 1} otherwise go to \emph{Step 2}
+\end{enumerate}
+
+\paragraph{Hamiltonian cycles}
+When the length of the snake at the end of the game is the only objective, there exists a perfect analytical solution, which is extremely simple and revolves around Hamiltonian cycles. A Hamiltonian cycle is a cycle which passed thorugh every vertex exactly once. For lattice graphs there always exists a Hamiltonian cycle. The agent can then follow this clyce indefinitely. With every iteration though the cycle at least one apple is eaten and there is no way of dying for the snake. Hence in the end the snake will cover ever position and "win" the game. However It will take a long while .
+
+\subsection{DQN Agents}
+\label{dqnAgents}
+Due to the promising results of \cite{atari} I spent most of my time on the DQN approach. Agents in this section were trained with the DQN algorithm.
+In order to use the DQN algorithm one has to first define $\mathcal{A}, \mathcal{S}$ and the reward function $R$. \\
+Instead of using ${A=\{ \text{LEFT, UP, RIGHT, DOWN}\} }$ I used ${A=\{ \text{STRAIGHT, LEFT, RIGHT}\} }$. This has two benefits: Firstly it saves some computational time and secondly when defining the actions relative to the movement of the snake the game becomes rotation invariant, when representing the game visually. Thus one can store 4 training tupels for every move made when training the convolutional agent. \\
+The state space $\mathcal{S}$ depends on the approach and will be discussed below. \\
+I chose a simple reward function $R$, which gives +1 when an apple is eaten and -1 when the snake dies. I tried to play around with it quite a bit. For example I added terms which punish the snake, when it takes too long to get to next apple or which gives a tiny reward when the snake gets closer to an apple. I didn't see realiable improvements and remained with the simple reward function. See Section \ref{dqnProblems} for a discussion of the problems of the reward function. \\
+For all of the models below I used a replay memory, which stored the last 50.000 moves. Inspired by \cite{atari} I used the RMSprop variant of SGD descent on mini-batches of size 64 sampled from the replay memory. Finally I used an $\epsilon \text{-greedy}$ strategy starting with $\epsilon=1$ and decaying $\epsilon$ linearly, such that after 66\% of the training $\epsilon=0$.
+
+\subsubsection{Simple DQN Appraoches}
+
+The simplest state space $\mathcal{S}$, that contains all essential information to at least have some success at playing the game is composed of 11 binary variables containg the following information:
+\begin{itemize}
+	\item 3 variables indicating the presence of wall or body parts in the 3 reachable fields adjacent to the head of the snake
+	\item 4 indicator variables encoding the current movement of the snake. Note that at all times exactly one of these is 1 and the others are 0
+	\item 4 indicator variables encoding the position of the apple relative to the head of the snake. I.e. one variable indicates whether the food is to the right of the head of the snake, etc.
+
+\end{itemize}
+
+To make the snake see a little more I also trained version where I added more information to the state space, such as indicator variables for all 10 fields which can be reached within the 2 next moves of the snake, as well as the distance to the wall and the distance to the next body part from the head of the snake to the left, right, up and down. This version has 25 variables in total and did perform a little bit better, as shown in Section \ref{performance}.
+
+The architecture I used was a simple \emph{multi-layer perceptron} with \emph{3 hidden layers} and \emph{ReLU} activation. The network has 3 output neurons and \emph{no} activation function is used, since the Q-function can take on (almost) arbitrary values. Regularization methos such as \emph{dropout} and \emph{weight decay} did not increase performance for these simple models
+
+1000 training games were sufficent where one SGD step was done after every game. I also tried 3000 games, but there wasn't much of a difference since the functions being trained were so simple. The training is fairly quick, convergeing after around 5 minutes. Figure \ref{training} shows the performance increase during training. The performance was by playing 50 games with $\epsilon=0$ after every 100 training steps. Here it can already be seen that the model with 25 variables makes good use of the additional performance. Especially on the more challenging board of size 20x20 the additional information is important.
+
+\begin{figure}
+	\centering
+	\subfloat[On an 8x8 board]{{\includegraphics[width=6cm]{img/training8.png} }}
+	\qquad
+	\subfloat[On a 20x20 board]{{\includegraphics[width=6cm]{img/training20.png} }}
+	\caption{\small \textbf{Training curves} }
+	\label{training}
+\end{figure} 
+
+The limited information feeded to the agent makes smart behaviour impossible. Furthermore it has to be noted that the learned function from $[0,1]^{11} \rightarrow \mathbb{R}^3$ is simple, as can be seen in Figure  \ref{t-SNE}.
+
+\begin{figure}
+	\centering
+	\subfloat[DQN agent with 11 variables, hidden layer has 60 neurons]{{\includegraphics[width=7cm]{img/simple_embedding.png} }}
+	\qquad
+	\subfloat[DQN agent with 25 variables, hidden layer has 80 neurons]{{\includegraphics[width=7cm]{img/complex_embedding.png} }}
+	\caption{\small \textbf{t-SNE visualizationf of the embedding of game states} -  I used t-SNE to visualize the the last hidden layer of all states encountered during the training of a DQN agent.  It can be seen that when using only 11 variables the structure of the embedding is fairly simple.}
+	\label{t-SNE}
+\end{figure} 
+
+ However \ML would not have been absolutely necessary here since a human could have come up with the same kind of rules with a little bit of effort.
+
+\subsubsection{Convolutional DQN Approach}
+
+In order to achieve more intelligent behaviour, the agents need to get more information about the game. Feeding the agent an image of the complete board and processing this information with a \emph{convolutional neural network} seemed most promising. Since the dimensionality of this state space is already extremely high, I reduced the size of the board to 8x8, but used the most recent 4 boards, such that the agent can get an idea about current movement of the snake. \\
+To produce the picture of the board I used the folloing encoding: \\
+%\begin{table}
+\begin{center}
+	\begin{tabular}{| l | c c c c c |}
+			\hline
+			type of cell  & body & head & wall & empty & food \\ \hline
+			encoding    & 0.5    & 0.25 & 0     &-0.25 & -0.5\\  \hline
+	\end{tabular}
+\end{center}
+%\end{table}
+On a side note I did not include the wall into the picture, but used a zero padding in the first convolutional layer, which has the same effect. I tried multiple architectures. They all followed the simple strucutre of some (between 2 and 6) convolutional layers followed by 1 or 2 fully connected layers. I used ReLU activations and played around with \emph{Dropout} and \emph{Batch Normalization} layers.
+
+I trained for 30.000 games doing a SGD step after \emph{every single move}, in order to give enough time to learn the structure of the very high deimensional state space. Unfortunately this approach did not really work, as can be seen in Section \ref{performance}. It could be that I simply did not train for long enough. For example \cite{ddqn} trained their model on 200M frames, which took  a whole week on a GPU. I give some more potential reasons for the failure in Section \ref{dqnProblems}.
+
+
+\subsubsection{Problems with DQN and SNAKE in general}
+\label{dqnProblems}
+Unfortunately I only looked into the results of the DQN algorithm with more detail after I already spent too much time on it. It turns out that \cite{atari} were able to achieve super human perormance on most ATARI games, however on games which requiered planning they performed poorly. Since SNAKE also requires thinking ahead into the future for many steps, this choice was a bad one. \\
+Also the need to define a reward function makes DQN less well fitted for SNAKE.
+Figure \ref{rewardFailure}
+ shows the impreciseness of the awarded rewards. Potentially one could put a lot of human effort in a handcrafted reward function. One approach I thought about, but didn't persue, is including a term in the reward which is proportional to the ratio of size of the connected component around the head after an action to the size of the biggest connected components of the alternative actions. However this would not be a good reward in general and could prevent from learning some good strategies. It would just be a dirty fix. \\
+ \begin{figure}
+ 	\centering
+ 	\subfloat{{\includegraphics[width=2cm]{img/bad_decision.png} }}
+ 	\qquad
+ 	\subfloat{{\includegraphics[width=2cm]{img/death.png} }}
+ 	\caption{\small \textbf{Failure case of the reward function} - The left image shows the moment a bad decision was made. Here the snake decides to go to the right, but a reward of 0 is given. The right one shows the moment of death, where a reward of -1 is given. The long time difference makes it very hard to learn that a decision, as shown in the left image, is a bad one.}
+ 	\label{rewardFailure}
+ \end{figure} 
+
+Another major problem with SNAKE is that there is no well defined best action for a given situation and in most situations all of the 3 possible actions are good actions if they align well with the following actions. However there are a few points in time where the choice of action is of crucial importance. \\
+For the same reason the \emph{replay memory} is being flooded with training tupels where nothing interesting happend. This makes sampling of actually relevant tupels less frequent. To counter this I introduced a separate replay memory, which contained situations in which the snake died or ate an apple. Half of the mini-batches are sampled from either replay memory.\\
+Finally I frequently encountered sequences where the snake followed its tail in a circle indefinitely when trying to train the convolutional DQN agent. This is not a problem when $\epsilon$ is not decayed down to 0, however having for example 10\% or 20\% random choices makes following a sophisticated strategy almost impossible.
+
+\subsection{Using Simulations to look into the future}
+
+Since simulations and especially MCTS are a successful \RL tool, especially when planning is required, I tried to improve the performance of the DQN agents by running simulations. When observing the bahaviour of the simple DQN agent, it became quite clear what the problem was: Because of the limited sight of the agent it frquently got trapped inside its own body. Hence it seemed to be a good idea to run some simulations in order to see whether an action might lead the snake into a situation with no way of escaping.\\
+Since playing SNAKE with a lot of time for every move is quite boring, I refrained from doing a lot of simulations. Therefore structuring them (into an MCTS scheeme for example) did not seem to make much sense as I never did more than 5 or 10 simulations per decision. When I run more than 1 simulation per action I set $\epsilon=0.1$, otherwise $\epsilon=0$. I run these simulations in the most simple form possible. For every timestep and every action $a$ which would not kill the agent, I run simulations where the first action is predifined to be $a$. Since a game of SNAKE can be extremely long, I limit the timesteps of the simulation to 60. Then I asses the result of the simulation by introducing a score which is calculated in the following way:
+\begin{itemize}
+	\item When the snake survived all 60 steps I add 50 to the score. This rule ensures that actions where the snake survives the complete simulation are preferred
+	\item I add 1 for the first apple eaten and add 0.2 for every additional eaten apple (since their position doesn't correspond to the position of the following apples in the real game). This ensures that actions where more apples are eaten are preferred.
+	\item I add $1.8 \cdot \frac{\text{numberOfMovesSurvived}}{60}$ to prefer actions where the snake can survive longer
+\end{itemize}
+
+The specific numbers used in the scoring procedure where attained by running some experiements (in a very non-scientific way). Although these simulations seem like like a quick hack the results are quite astounding.
+
+\subsection{Things I tried but didn't work at all}
+As described in Section \ref{dqnAgents}, I wasn't able to train agents which used the complete board as input. Therefore I tried a lot of things to make it work. Without success. Besides playing around a lot with the network architectures, hyperparameters and reward function, I list fundamentally new approaches to the above described ones below.
+
+\paragraph{Autoencoder} I tried to bypass a lot of the training instabilities of the DQN algorithm by doing a big part of the training beforehand. I wanted to train the processing of the visual information beforehand. This way I could drastically reduce the dimensionality of the state space and make the DQN algorithm faster and more stable. Therefore I trained a convolutional autoencoder on 50.000 visual game states which were produced by running a simple DQN agent. I modeled the probelm as a clssification task, where every position had one of the following classes: EMPTY, FOOD, HEAD, BODY. I used a custom weighted categorical cross entropy loss to fight class imbalance (HEAD and FOOD appear less often then EMPTY and BODY). I then tried to represent the states of the game by the \emph{code} (of dimensionality 90) produced by the \emph{encoder} part of the autoencoder. However this didn't work either. Maybe it would have worked on a 8x8 board instead of the 20x20 version I tried it on.
+
+
+\paragraph{The AlphaZero Approach} 
+As described in Section \ref{dqnProblems} the DQN algorithm is probabliy not well suited to train sophisticated SNAKE agents. The AlphaZero algorithm however is very well suited for playing strategic games. I used the implementation of the AlphaZero algorithm from this \href{https://github.com/suragnair/alpha-zero-general}{Github repository} and modified it to work for single player games, such as SNAKE. On an 8x8 board the first self play period looked very promising and filled on average 30\% of the board. However after training the network on the gained experience, the second self play period produced much worse games, averaging around 10\% of the board. Sadly I don't know how that can be, especially since the value part of the network had a good fit and the action part of the network also learned decently about the moves of the first self play episode. One possible explaination could be that I made a mistake in transfering the algorithm to single player mode or that there are some other bugs. \\
+I cannot explain this huge performance drop since the performance should increase at least a little bit, especially after the first training period. After reading that the authors of the GitHub repository trained their version to play Othello on a 6x6 board for 3 days straight on a NVIDIA Tesla K80 GPU, I stopped pursuing this path. Another reason was that I only had 3 days left to the deadline.
+
+\section{Performance Comparison}
+\label{performance}
+The main objective of playing SNAKE is to eat as many apples as possible. Another measure I present is the average time needed to make a decision. The results can are shown in Table \ref{tab:performance}, respectively for a 20x20 and 8x8 board. In order to collect the data I ran 1000 games per agent. Except for the agent running simulations I only ran 10 games, since they take a little longer. This performance measure is dominated by the DQN agent which runs simulations.\\
+Yet another interesting performance measure is the number of moves required to eat the next apple. However with a longer body more moves are required to safely eat the next apple. Consequently I measure the average moves until the next apple sepearately for different lengths of the snake body. The agent going along the shortest paths is clearly the most efficient. The DQN agents perform relativeley similar but when running simulations the agent becomes much more cautioous resulting in a huge increase in moves required to get to the next apple. It seems that achieving longer lengths comes at a price of efficiency. \\
+
+
+	\begin{table}
+	\centering
+	\begin{tabular}{l|*{5}{c}}
+		\hline
+		\textbf{Agent on 20x20}              & min score & avg score & max score  & avg moves survived & avg  time\\
+		\hline
+		Random 					  & 4 & 5.93 & 11 & 3391.9 & \textbf{0.0001}\\
+		ShortestPaths          & 15 & 78.16 & 135 &  1323.0 & 0.0006\\
+		11VariablesDQN         & 9  & 29.81 & 61 & 434.1 & 0.0005\\
+		25VariablesDQN        &  1  & 38.57   &  78 & 628.9&0.0006 \\
+		DQN+Sim                 & \textbf{53}  &  \textbf{99.9}& \textbf{163}& \textbf{4498.2}&0.142\\
+		\hline
+	\end{tabular} \\
+ 	\bigskip
+	\begin{tabular}{l|*{5}{c}}
+		\hline
+		\textbf{Agent on 8x8}              & min score & avg score & max score  & avg moves survived &avg time \\
+		\hline
+		Random 					  & 4 & 6.64 & 15 & 464 .1 & \textbf{0.0002s} \\
+		ShortestPaths           & 9 & 26.61 & 47 & 177.1   & 0.0004s \\
+		11VariablesDQN         & 5& 19.10 & 37 & 118.5& 0.0005s\\
+		25VariablesDQN        & 10 &  22.23 & 40 & 178.2 & 0.0005s \\
+		DQN+Sim                 & \textbf{22} & \textbf{49.50} & \textbf{86} & \textbf{733.1} & 0.126s \\
+		\hline
+	\end{tabular}
+	
+	\bigskip
+	
+	\caption{\textbf{Performance on 20x20 and 8x8 grid} - On a smaller grid simulations are even more powerful. (Simulations of 60 steps are equivalent to 400 step simulations on the 20x20 board.) On a side note: It is possible to eat more apples than the size of the board because the snake doesn't gain length immediately upon eating an apple, but only when the last body part would leave the position where it ate the apple.}
+	\label{tab:performance}
+\end{table}
+
+\begin{figure}
+	\centering
+	\subfloat[On an 8x8 board]{{\includegraphics[width=6cm]{img/moves8.png} }}
+	\qquad
+	\subfloat[On a 20x20 board]{{\includegraphics[width=6cm]{img/moves20.png} }}
+	\caption{\small \textbf{Avg. moves to next apple} - The agent running simulations shows a very cautious behaviour, since I set the hyperparameters this way. On the otherhand the cautiousness pays off, since this agent scores the most points.}
+	\label{movesPerformance}
+\end{figure} 
+
+\section{Outlook}
+\label{outlook}
+Although the performance of the simple DQN agent combined with running some simulations to look into the future is good on the 20x20 board and excellent on the 8x8 board, I think that there is a lot of space for improvement. One possible approach could be to try the DQN algorithm with a specially crafted reward function as described in Section \ref{dqnProblems}. Also pretrained weights from the autoencoder could come in handy.\\
+A more promising solution seems to be the AlphaZero approach. The only reason why this approach would \emph{not} work on SNAKE would be that in SNAKE very often it is not at all clear which of the 3 action to take and sometimes it is cruicial. But this is just a guess and I believe that AlphaZero should work. If I find some time in my semester break I might spend some more time on that.
+
+\section{Conclusion}
+\label{conclusion}
+In this project I was able to train an agent, which only sees the bear minimum of what is necessary, with the DQN algorithm. The simple DQN agent itself doesn't show any sophisticated bahaviour, but always takes a relatively short path to the next apple. Combining this greedy behaviour with running simulations which prefere cautious behaviour, turned out to produce a good strategy in total. I wasn't able to train more sophisticated approaches, which use convolutional neural networks to process the visual information of the game (trained with the DQN or the AlphaZero approach), in the limited time of this project. I believe that with more time, patience and computational power it is possible to train such agents (with DQN or preferably AlphaZero), which show intelligent behaviour.
+
+
+\bibliographystyle{dinat}
+\bibliography{references}  %%% Remove comment to use the external .bib file (using bibtex).
+%%% and comment out the ``thebibliography'' section.
+
+
+
+%%% Comment out this section when you \bibliography{references} is enabled.
+%\bibliography{atari}
+
+\end{document}
